@@ -1,0 +1,28 @@
+#!/bin/bash -eu
+
+test_in='{
+  "source": {
+    "uri": "git://some-uri",
+    "branch": "develop",
+    "private_key": "..."
+  },
+  "version": { "ref": "61cebf" }
+}'
+test_out='{ version: { ref: .version.ref } }'
+
+output="$(echo "$test_in" | ./in test)"
+desired="$(echo "$test_in" | jq "$test_out" )"
+
+if test "$output" == "$desired"; then
+  echo "All tests passed."
+else
+cat <<EOF
+Test failed!
+===============================================================================
+Desired:
+$desired
+===============================================================================
+Actual:
+$output
+EOF
+fi

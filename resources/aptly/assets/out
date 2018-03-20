@@ -1,0 +1,68 @@
+#!/bin/bash -eu
+
+exec 3>&1 # make stdout available as fd 3 for the result
+exec 1>&2 # redirect all output to stderr for logging
+
+source=$1
+
+if [ -z "$source" ]; then
+  echo "usage: $0 <path/to/source>"
+  exit 1
+fi
+
+payload=$(mktemp /tmp/resource-in.XXXXX)
+cat >"$payload" <&0
+
+cd "$source"
+
+api="$(jq -r '.source.api // "http://aptly:8080/api"' < "$payload")"
+
+package_file="$(jq -r '.params.package_file // ""' < "$payload")"
+aptly_repo="$(jq -r '.params.aptly_repo // ""' < "$payload")"
+publish_dist="$(jq -r '.params.publish_dist // ""' < "$payload")"
+publish_endpoint="$(jq -r '.params.publish_endpoint // "filesystem:public:"' < "$payload")"
+publish_prefix="$(jq -r '.params.publish_prefix // "."' < "$payload")"
+
+[[ -n "$package_file" ]] && {
+  echo "Must provide package name in file."
+  exit 1
+}
+[[ -n "$aptly_repo" ]] && {
+  echo "Must provide local Aptly repo to add packages to."
+  exit 1
+}
+[[ -n "$publish_dist" ]] && {
+  echo "Must provide distribution to publish to."
+  exit 1
+}
+
+files=( *.deb )
+version="$(echo "${files[0]}" | perl -ne '/.*_(.*)_.*/ && print $1')"
+upload_dir="${version}_$(date +%s)"
+
+shopt -s nullglob
+for f in "${files[@]}"; do
+  echo -n "Uploading $f... "
+  curl -sf -XPOST -F "file=@$f" "$api/files/$upload_dir"
+  echo
+done
+
+echo "Listing uploaded files for confirmation."
+curl -sf "$api/files/$upload_dir" | jq '.'
+
+echo "Adding new files to $publish_dist."
+curl -sf -XPOST "$api/repos/$aptly_repo/file/$upload_dir" | jq '.'
+
+echo "Publishing updated repository."
+curl -sf -XPUT "$api/publish/${publish_endpoint}${publish_prefix}/${publish_dist}" | jq '.'
+
+jq -n "{
+  version: {
+    version: $version
+  },
+  metadata: [
+    { name: \"package\", value: $(cat "$package_file") }
+  ]
+}
+}" >&3
+
