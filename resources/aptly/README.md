@@ -12,7 +12,7 @@ Uploads Debian packages through an Aptly API and publishes an update.
 
 ### `in`: Does nothing. Should not be used.
 
-### `out`: Upload packages to Aptly and publish an update.
+### `out`: Upload packages to Aptly repo and publish said repo.
 
 The resulting version is the package version.
 
