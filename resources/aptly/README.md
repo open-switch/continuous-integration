@@ -18,11 +18,11 @@ The resulting version is the package version.
 
 #### Parameters
 
-- `package_file`: *Required.* A path to a file to get the source package name from.
 - `aptly_repo`: *Required.* The Aptly repository to add packages to.
 - `publish_dist`: *Required.* The Debian distribution to publish to.
 - `publish_endpoint`: *Optional.* The Aptly endpoint to publish to.
 - `publish_prefix`: *Optional.* The Aptly prefix to publish to.
+- `upload`: *Optional.* The directory to upload.
 
 ## Example
 
@@ -42,12 +42,13 @@ resources:
 jobs:
 - name: build-rootfs
   plan:
+  - get: pkg
   - put: aptly
     params:
-      package_file: package
       aptly_repo: opx-stable
       publish_dist: stable
-      publish_endpoint: filesystem:public:
+      publish_endpoint: "filesystem:public:"
       publish_prefix: .
+      upload: pkg
 ```
 

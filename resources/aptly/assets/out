@@ -10,59 +10,50 @@ if [ -z "$source" ]; then
   exit 1
 fi
 
-payload=$(mktemp /tmp/resource-in.XXXXX)
+payload=$(mktemp)
 cat >"$payload" <&0
 
 cd "$source"
 
 api="$(jq -r '.source.api // "http://aptly:8080/api"' < "$payload")"
 
-package_file="$(jq -r '.params.package_file // ""' < "$payload")"
 aptly_repo="$(jq -r '.params.aptly_repo // ""' < "$payload")"
 publish_dist="$(jq -r '.params.publish_dist // ""' < "$payload")"
 publish_endpoint="$(jq -r '.params.publish_endpoint // "filesystem:public:"' < "$payload")"
 publish_prefix="$(jq -r '.params.publish_prefix // "."' < "$payload")"
+upload="$(jq -r '.params.upload // "pkg"' < "$payload")"
 
-[[ -n "$package_file" ]] && {
-  echo "Must provide package name in file."
-  exit 1
-}
-[[ -n "$aptly_repo" ]] && {
+[[ -z "$aptly_repo" ]] && {
   echo "Must provide local Aptly repo to add packages to."
   exit 1
 }
-[[ -n "$publish_dist" ]] && {
+[[ -z "$publish_dist" ]] && {
   echo "Must provide distribution to publish to."
   exit 1
 }
 
-files=( *.deb )
-version="$(echo "${files[0]}" | perl -ne '/.*_(.*)_.*/ && print $1')"
-upload_dir="${version}_$(date +%s)"
+files=( "$upload"/*.deb )
+version="$(dpkg -f "${files[0]}" Version)"
+package="$(dpkg -f "${files[0]}" Source)"
 
-shopt -s nullglob
-for f in "${files[@]}"; do
-  echo -n "Uploading $f... "
-  curl -sf -XPOST -F "file=@$f" "$api/files/$upload_dir"
-  echo
-done
+find "$upload" -maxdepth 1 \( -name '*.deb' -o -name '*.dsc' -o -name '*.changes' -o -name '*.tar.gz' -o -name '*.build' \) \
+  -exec curl -sf -XPOST -F "file=@{}" "$api/files/$version" \;
+echo
 
 echo "Listing uploaded files for confirmation."
-curl -sf "$api/files/$upload_dir" | jq '.'
+curl -sf "$api/files/$version" | jq '.'
 
 echo "Adding new files to $publish_dist."
-curl -sf -XPOST "$api/repos/$aptly_repo/file/$upload_dir" | jq '.'
+curl -sf -XPOST "$api/repos/$aptly_repo/file/$version" | jq '.'
 
 echo "Publishing updated repository."
 curl -sf -XPUT "$api/publish/${publish_endpoint}${publish_prefix}/${publish_dist}" | jq '.'
 
 jq -n "{
-  version: {
-    version: $version
-  },
+  version: { ref: \"$version\" },
   metadata: [
-    { name: \"package\", value: $(cat "$package_file") }
+    { name: \"package\", value: \"$package\" }
   ]
-}
 }" >&3
+
 

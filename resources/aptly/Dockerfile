@@ -1,5 +1,8 @@
-FROM alpine
+FROM debian:stable-slim
 
-RUN apk --no-cache add bash jq
+RUN apt-get update && apt-get install -y \
+    curl \
+    jq \
+ && rm -rf /var/apt/lists/*
 
 ADD assets/ /opt/resource/
