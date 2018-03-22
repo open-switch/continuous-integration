@@ -1,0 +1,71 @@
+---
+jobs:
+- name: publish-image
+  public: true
+  plan:
+  - aggregate:
+    - get: opx-build
+      trigger: true
+    - get: base-image
+      params:
+        save: true
+  - task: build-image
+    privileged: true
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: opxhub/dcind
+      inputs:
+      - name: opx-build
+      - name: base-image
+      outputs:
+      - name: images
+      params:
+        REPO: opx-build
+      run:
+        path: bash
+        args:
+        - -exc
+        - |
+          source /docker-lib.sh; start_docker
+
+          docker load -i base-image/image
+          docker tag "$(cat base-image/image-id)" "$(cat base-image/repository):$(cat base-image/tag)"
+
+          docker images
+
+          pushd $REPO
+          ./docker_build.sh
+          version="$(cat .git/refs/heads/master | cut -c1-7)-jessie"
+          popd
+
+          docker save opxhub/build:latest -o images/image.tar
+          echo $version >images/version
+  - put: opxhub-build
+    params:
+      load_file: images/image.tar
+      load_repository: opxhub/build
+      load_tag: latest
+      tag: images/version
+      tag_as_latest: true
+
+resources:
+- name: opx-build
+  type: git
+  source:
+    uri: git://github.com/open-switch/opx-build
+    branch: master
+- name: opxhub-build
+  type: docker-image
+  source:
+    repository: opxhub/build
+    username: ((docker.username))
+    password: ((docker.password))
+- name: base-image
+  type: docker-image
+  source:
+    repository: debian
+    tag: jessie-backports
+
