@@ -25,7 +25,9 @@ debian_repos = \
   opx-pas \
   opx-tmpctl \
   opx-tools \
-  opx-alarm
+  opx-alarm \
+  opx-snmp \
+  opx-onie-installer
 
 opx-build:
 	fly -t $(team) set-pipeline -c opx/$@.yaml -p $@ -v repo=$@ -n
@@ -33,6 +35,11 @@ opx-build:
 	@fly -t $(team) expose-pipeline -p $@
 
 opx-core:
+	fly -t $(team) set-pipeline -c opx/$@.yaml -p $@ -v repo=$@ -n
+	@# fly -t $(team) unpause-pipeline -p $@
+	@fly -t $(team) expose-pipeline -p $@
+
+opx-onie-installer:
 	fly -t $(team) set-pipeline -c opx/$@.yaml -p $@ -v repo=$@ -n
 	@# fly -t $(team) unpause-pipeline -p $@
 	@fly -t $(team) expose-pipeline -p $@

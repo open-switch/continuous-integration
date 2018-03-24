@@ -1,5 +1,24 @@
----
-jobs:
+resources: ####################################################################
+
+- name: opx-build
+  type: git
+  source:
+    uri: git://github.com/open-switch/opx-build
+    branch: master
+- name: opxhub-build
+  type: docker-image
+  source:
+    repository: opxhub/build
+    username: ((docker.username))
+    password: ((docker.password))
+- name: base-image
+  type: docker-image
+  source:
+    repository: debian
+    tag: jessie-backports
+
+jobs: #########################################################################
+
 - name: publish-image
   public: true
   plan:
@@ -50,22 +69,4 @@ jobs:
       load_tag: latest
       tag: images/version
       tag_as_latest: true
-
-resources:
-- name: opx-build
-  type: git
-  source:
-    uri: git://github.com/open-switch/opx-build
-    branch: master
-- name: opxhub-build
-  type: docker-image
-  source:
-    repository: opxhub/build
-    username: ((docker.username))
-    password: ((docker.password))
-- name: base-image
-  type: docker-image
-  source:
-    repository: debian
-    tag: jessie-backports
 

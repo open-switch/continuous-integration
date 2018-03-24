@@ -1,0 +1,62 @@
+resource_types: ###############################################################
+
+- name: email
+  type: docker-image
+  source:
+    repository: pcfseceng/email-resource
+
+resources: ####################################################################
+
+- name: repo
+  type: git
+  source:
+    uri: git://github.com/open-switch/opx-onie-installer
+    branch: master
+    tag_filter: "*"
+- name: email
+  type: email
+  source:
+    smtp:
+      host: email-smtp.us-west-2.amazonaws.com
+      port: "587"
+      username: ((smtp.username))
+      password: ((smtp.password))
+    from: opx@openswitch.net
+    to:
+    -  tyler.heucke@dell.com
+
+jobs: #########################################################################
+
+- name: release
+  public: true
+  plan:
+  - get: repo
+    trigger: true
+  - task: assemble-installer
+    privileged: true
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source:
+          repository: opxhub/build
+      inputs:
+      - name: repo
+      run:
+        path: bash
+        args:
+        - -euc
+        - |
+          opx_rel_pkgasm.py -v 5 --debug --dist 2.3.0 -n 0 \
+            -b repo/release_bp/OPX_dell_base.xml
+  on_success:
+    put: email
+    params:
+      subject_text: "${BUILD_JOB_NAME} for ${BUILD_PIPELINE_NAME} succeeded!"
+      body_text: "((build-url))"
+  on_failure:
+    put: email
+    params:
+      subject_text: "${BUILD_JOB_NAME} for ${BUILD_PIPELINE_NAME} failed"
+      body_text: "((build-url))"
+
