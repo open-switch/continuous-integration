@@ -49,6 +49,9 @@ curl -sf -XPOST "$api/repos/$aptly_repo/file/$version" | jq '.'
 echo "Publishing updated repository."
 curl -sf -XPUT "$api/publish/${publish_endpoint}${publish_prefix}/${publish_dist}" | jq '.'
 
+echo "Deleting uploaded files."
+curl -sf -XDELETE "$api/files/$version" | jq '.'
+
 jq -n "{
   version: { ref: \"$version\" },
   metadata: [
