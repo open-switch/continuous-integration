@@ -2,13 +2,11 @@ team ?= stg
 
 # from opx-build/scripts/opx_build
 debian_repos = \
-  opx-core \
   opx-logging \
   opx-common-utils \
   opx-cps \
   opx-base-model \
   opx-db-sql \
-  opx-sai-api \
   opx-sai-vm \
   opx-nas-common \
   opx-nas-linux \
@@ -26,26 +24,20 @@ debian_repos = \
   opx-tmpctl \
   opx-tools \
   opx-alarm \
-  opx-snmp \
-  opx-onie-installer
+  opx-snmp
 
 opx-build:
-	fly -t $(team) set-pipeline -c opx/$@.yaml -p $@ -v repo=$@ -n
+	fly -t $(team) set-pipeline -c opx/$@.yaml -p $@ -v repo=$@
 	@fly -t $(team) unpause-pipeline -p $@
 	@fly -t $(team) expose-pipeline -p $@
 
 opx-core:
-	fly -t $(team) set-pipeline -c opx/$@.yaml -p $@ -v repo=$@ -n
-	@# fly -t $(team) unpause-pipeline -p $@
-	@fly -t $(team) expose-pipeline -p $@
-
-opx-onie-installer:
-	fly -t $(team) set-pipeline -c opx/$@.yaml -p $@ -v repo=$@ -n
+	fly -t $(team) set-pipeline -c opx/$@.yaml -p $@ -v repo=$@
 	@# fly -t $(team) unpause-pipeline -p $@
 	@fly -t $(team) expose-pipeline -p $@
 
 opx-sai-api:
-	fly -t $(team) set-pipeline -c opx/$@.yaml -p $@ -v repo=$@ -n
+	fly -t $(team) set-pipeline -c opx/$@.yaml -p $@ -v repo=$@
 	@# fly -t $(team) unpause-pipeline -p $@
 	@fly -t $(team) expose-pipeline -p $@
 

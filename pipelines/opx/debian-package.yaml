@@ -12,13 +12,13 @@ resource_types: ###############################################################
 
 resources: ####################################################################
 
-- name: ((repo))
+- name: git
   type: git
   source:
     uri: git://github.com/open-switch/((repo))
     branch: master
 
-- name: ((repo))-tag
+- name: git-tag
   type: git
   source:
     uri: git://github.com/open-switch/((repo))
@@ -48,9 +48,9 @@ jobs: #########################################################################
   public: true
   build_logs_to_retain: 100
   plan:
-  - get: ((repo))
+  - get: git
     trigger: true
-  - task: git-buildpackage
+  - task: bump-version
     privileged: true
     config:
       platform: linux
@@ -59,19 +59,15 @@ jobs: #########################################################################
         source:
           repository: opxhub/build
       inputs:
-      - name: ((repo))
+      - name: git
       outputs:
-      - name: pkg
-      params:
-        REPO: ((repo))
+      - name: src
       run:
         path: bash
         args:
         - -euc
         - |
-          # workaround for hard-coded /mnt directory in opx_build script
-          git clone $REPO /mnt/$REPO
-          pushd /mnt/$REPO
+          pushd git
           # bump version with date and git sha
           v="$(dpkg-parsechangelog -SVersion)"
           if [[ $v == *"+"* ]]; then s="."; else s="+"; fi
@@ -81,18 +77,16 @@ jobs: #########################################################################
             --distribution unstable \
             --controlmaint \
             "$(git log --oneline -1)"
-          dpkg-parsechangelog --count 1
           popd
-          # build packages
-          pushd /mnt/
-          /opt/opx-build/scripts/opx_build $REPO
-          popd
-          # copy packages to output
-          cp -t pkg/ /mnt/*.deb /mnt/*.build /mnt/*.dsc /mnt/*.tar.gz
+          cp -r git/. src
+  - task: build
+    privileged: true
+    file: src/.ci/build.yaml
   - put: aptly
     params:
       aptly_repo: opx-unstable
       publish_dist: unstable
+      upload: dist
   on_failure:
     put: email
     params:
@@ -103,45 +97,20 @@ jobs: #########################################################################
   public: true
   build_logs_to_retain: 100
   plan:
-  - get: ((repo))-tag
+  - get: git-tag
     trigger: true
-  - task: git-buildpackage
+  - task: build
     privileged: true
-    config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source:
-          repository: opxhub/build
-          tag: testing
-      inputs:
-      - name: ((repo))-tag
-        path: ((repo))
-      outputs:
-      - name: pkg
-      params:
-        REPO: ((repo))
-      run:
-        path: bash
-        args:
-        - -euc
-        - |
-          # workaround for hard-coded /mnt directory in opx_build script
-          git clone $REPO /mnt/$REPO
-          # print changelog entry that triggered this pipeline
-          pushd /mnt/$REPO
-          dpkg-parsechangelog --count 1
-          popd
-          # build packages
-          pushd /mnt/
-          /opt/opx-build/scripts/opx_build $REPO
-          popd
-          # copy packages to output
-          cp -t pkg/ /mnt/*.deb /mnt/*.build /mnt/*.dsc /mnt/*.tar.gz
+    file: git-tag/.ci/build.yaml
+    input_mapping:
+      src: git-tag
+    params:
+      OPX_RELEASE: testing
   - put: aptly
     params:
       aptly_repo: opx-testing
       publish_dist: testing
+      upload: dist
   on_failure:
     put: email
     params:
