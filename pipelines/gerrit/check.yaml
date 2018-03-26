@@ -62,7 +62,7 @@ jobs: #########################################################################
         params:
           repository: src
           message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} succeeded!"
-          labels: {Verified: 1}
+          labels: {Verified: 2}
       on_failure:
         put: src
         params:
