@@ -37,20 +37,20 @@ version="$(dpkg -f "${files[0]}" Version)"
 package="$(dpkg -f "${files[0]}" Source)"
 
 find "$upload" -maxdepth 1 \( -name '*.deb' -o -name '*.dsc' -o -name '*.changes' -o -name '*.tar.gz' -o -name '*.build' \) \
-  -exec curl -sf -XPOST -F "file=@{}" "$api/files/$version" \;
+  -exec curl -s -XPOST -F "file=@{}" "$api/files/$version" \;
 echo
 
 echo "Listing uploaded files for confirmation."
-curl -sf "$api/files/$version" | jq '.'
+curl -s "$api/files/$version" | jq '.'
 
 echo "Adding new files to $publish_dist."
-curl -sf -XPOST "$api/repos/$aptly_repo/file/$version" | jq '.'
+curl -s -XPOST "$api/repos/$aptly_repo/file/$version" | jq '.'
 
 echo "Publishing updated repository."
-curl -sf -XPUT "$api/publish/${publish_endpoint}${publish_prefix}/${publish_dist}" | jq '.'
+curl -s -XPUT "$api/publish/${publish_endpoint}${publish_prefix}/${publish_dist}" | jq '.'
 
 echo "Deleting uploaded files."
-curl -sf -XDELETE "$api/files/$version" | jq '.'
+curl -s -XDELETE "$api/files/$version" | jq '.'
 
 jq -n "{
   version: { ref: \"$version\" },
