@@ -70,18 +70,19 @@ jobs: #########################################################################
           message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} failed."
           labels: {Verified: -1}
 
-    - task: lint
-      file: src/.ci/lint.yaml
-      on_success:
-        put: src
-        params:
-          repository: src
-          message: "Lint ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} succeeded!"
-          labels: {Code-Style: 1}
-      on_failure:
-        put: src
-        params:
-          repository: src
-          message: "Lint ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} Failed."
-          labels: {Code-Style: -1}
+    - try:
+        task: lint
+        file: src/.ci/lint.yaml
+        on_success:
+          put: src
+          params:
+            repository: src
+            message: "Lint ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} succeeded!"
+            labels: {Code-Style: 1}
+        on_failure:
+          put: src
+          params:
+            repository: src
+            message: "Lint ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} Failed."
+            labels: {Code-Style: -1}
 
