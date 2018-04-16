@@ -27,7 +27,26 @@ jobs: #########################################################################
     params:
       load_file: dist/image.tar
       load_repository: opxhub/build
-      load_tag: latest
+      load_tag: jessie
       tag: dist/version
+      additional_tags: dist/tags
       tag_as_latest: true
+
+- name: publish-image-stretch
+  public: true
+  plan:
+  - get: src
+    trigger: true
+  - task: build
+    privileged: true
+    file: src/.ci/build.yaml
+    params:
+      DIST: stretch
+  - put: opxhub-build
+    params:
+      load_file: dist/image.tar
+      load_repository: opxhub/build
+      load_tag: stretch
+      tag: dist/version
+      additional_tags: dist/tags
 
