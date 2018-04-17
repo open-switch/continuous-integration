@@ -22,38 +22,11 @@ jobs: #########################################################################
   max_in_flight: 8
   public: true
   plan:
-
   - get: src
     version: every
     trigger: true
-
-  - task: verify-config
-    config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source:
-          repository: alpine
-      inputs:
-      - name: src
-      run:
-        path: sh
-        args:
-        - -exc
-        - |
-          if [ ! -d src/.ci/ ]; then
-            echo "Configuration does not exist."
-            exit 1
-          fi
-
-  - put: src
-    params:
-      repository: src
-      message: "Job ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} started."
-
   - aggregate:
-
-    - task: build-stretch
+    - task: build
       attempts: 3
       privileged: true
       file: src/.ci/build.yaml
@@ -69,7 +42,6 @@ jobs: #########################################################################
           repository: src
           message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} failed."
           labels: {Verified: -1}
-
     - try:
         task: lint
         file: src/.ci/lint.yaml
@@ -85,62 +57,3 @@ jobs: #########################################################################
             repository: src
             message: "Lint ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} Failed."
             labels: {Code-Style: -1}
-
-    - try:
-        do:
-        - task: verify-debian-package
-          config:
-            platform: linux
-            image_resource:
-              type: docker-image
-              source:
-                repository: alpine
-            inputs:
-            - name: src
-            run:
-              path: sh
-              args:
-              - -exc
-              - |
-                if [ ! -e src/debian/rules ]; then
-                  echo "Not a Debian package."
-                  exit 1
-                fi
-        - task: stretch-build
-          attempts: 3
-          privileged: true
-          config:
-            platform: linux
-            image_resource:
-              type: docker-image
-              source:
-                repository: opxhub/build
-                tag: stretch
-            inputs:
-            - name: src
-            outputs:
-            - name: dist
-            params:
-              DIST: stretch
-            run:
-              path: bash
-              args:
-              - -elc
-              - |
-                cp -r src /mnt/src; pushd /mnt; opx_build src; popd
-                find /mnt/pool \( -name '*.deb' \
-                              -o -name '*.dsc' \
-                              -o -name '*.changes' \
-                              -o -name '*.tar.gz' \
-                              -o -name '*.build' \) -exec cp -t dist/ {} +
-          on_success:
-            put: src
-            params:
-              repository: src
-              message: "Stretch build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} succeeded!"
-          on_failure:
-            put: src
-            params:
-              repository: src
-              message: "Stretch build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} failed."
-
