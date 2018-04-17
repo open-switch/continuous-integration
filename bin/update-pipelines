@@ -1,0 +1,131 @@
+#!/usr/bin/env python3.6
+"""Simple program to deploy Concourse pipelines."""
+
+import argparse
+import logging
+import subprocess
+import sys
+
+from pathlib import Path
+
+L = logging.getLogger(__name__)
+L.addHandler(logging.NullHandler())
+
+DEBIAN_REPOS = [
+  'opx-alarm',
+  'opx-base-model',
+  'opx-common-utils',
+  'opx-cps',
+  'opx-db-sql',
+  'opx-logging',
+  'opx-nas-acl',
+  'opx-nas-common',
+  'opx-nas-daemon',
+  'opx-nas-interface',
+  'opx-nas-l2',
+  'opx-nas-l3',
+  'opx-nas-linux',
+  'opx-nas-ndi',
+  'opx-nas-ndi-api',
+  'opx-nas-qos',
+  'opx-pas',
+  'opx-platform-config',
+  'opx-sai-vm',
+  'opx-sdi-sys',
+  'opx-snmp',
+  'opx-tmpctl',
+  'opx-tools',
+]
+
+
+def update_pipelines(team: str, noninteractive: bool):
+    for p in pipelines():
+        L.debug(f'Deploying {p.stem}...')
+        cmd = ['fly', '-t', team, 'set-pipeline',
+               '--pipeline', p.stem,
+               '--config', str(p)]
+        if noninteractive:
+            run(cmd + ['-n'])
+        else:
+            run(cmd, input=b'n\n')
+            if input('Update pipeline? [y] ') == 'y':
+                run(cmd, input=b'y\n')
+
+
+def unpause_pipelines(team: str):
+    for p in pipelines():
+        cmd = ['fly', '-t', team, 'unpause-pipeline',
+               '--pipeline', p.stem]
+        run(cmd)
+
+
+def expose_pipelines(team: str):
+    for p in pipelines():
+        cmd = ['fly', '-t', team, 'expose-pipeline',
+               '--pipeline', p.stem]
+        run(cmd)
+
+
+def run(cmd, input=None):
+    try:
+        L.debug(f'Running: {" ".join(cmd)}')
+        print(subprocess.check_output(cmd, input=input).decode('utf-8'))
+    except subprocess.CalledProcessError as e:
+        L.error(f'Error! Return code was {e.returncode}.')
+        sys.exit(1)
+
+
+def pipelines():
+    return Path('pipelines').glob('*.yaml')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+
+    parser.add_argument(
+        '-v', '--verbose',
+        help='log debug messages',
+        action='store_const',
+        dest='loglevel',
+        const=logging.DEBUG,
+        default=logging.INFO,
+    )
+
+    parser.add_argument(
+        '--team', '-t',
+        default='prod',
+        help='Concourse team to use.',
+    )
+
+    parser.add_argument(
+        '--noninteractive', '-n',
+        action='store_true',
+        help='No prompt for confirmation.',
+    )
+
+    parser.add_argument(
+        '--expose', '-e',
+        action='store_true',
+        help='Expose pipeline after setting.',
+    )
+
+    parser.add_argument(
+        '--unpause', '-u',
+        action='store_true',
+        help='Unpause pipeline after setting.',
+    )
+
+    args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel)
+    L.debug(args)
+
+    update_pipelines(args.team, args.noninteractive)
+
+    if args.unpause:
+        unpause_pipelines(args.team)
+
+    if args.expose:
+        expose_pipelines(args.team)
+
+if __name__ == '__main__':
+    main()
