@@ -2,6 +2,7 @@ groups: #######################################################################
 
 - name: commit
   jobs: [jessie, stretch]
+
 - name: review
   jobs: [check]
 

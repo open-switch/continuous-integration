@@ -1,0 +1,14 @@
+---
+platform: linux
+image_resource:
+  type: docker-image
+  source:
+    repository: opxhub/build
+    tag: jessie
+inputs:
+  - name: concourse
+  - name: src
+outputs:
+  - name: src-artifacts
+run:
+  path: concourse/tasks/dpkg-deb-jessie/run.sh

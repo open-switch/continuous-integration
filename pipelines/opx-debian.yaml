@@ -2,8 +2,10 @@ groups: #######################################################################
 
 - name: commit
   jobs: [release-jessie, release-stretch]
+
 - name: tag
   jobs: [promote-jessie, promote-stretch]
+
 - name: review
   jobs: [check-jessie, check-stretch]
 
