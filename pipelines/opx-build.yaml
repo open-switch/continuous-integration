@@ -90,7 +90,6 @@ jobs: #########################################################################
       load_tag: stretch
       tag: opx-build-artifacts/version
       additional_tags: opx-build-artifacts/tags
-      tag_as_latest: true
 
 - name: check
   public: true
@@ -108,6 +107,8 @@ jobs: #########################################################################
     attempts: 3
     privileged: true
     file: concourse/tasks/opx-build-docker/task.yaml
+    input_mapping:
+      opx-build: review-opx-build
     params:
       DIST: jessie
     on_success:
