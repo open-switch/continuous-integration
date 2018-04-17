@@ -1,0 +1,256 @@
+groups: #######################################################################
+
+- name: commit
+  jobs: [release-jessie, release-stretch]
+- name: tag
+  jobs: [promote-jessie, promote-stretch]
+- name: review
+  jobs: [check-jessie, check-stretch]
+
+resource_types: ###############################################################
+
+- name: gerrit
+  type: docker-image
+  source:
+    repository: us.gcr.io/concourse-resources/gerrit-resource
+
+- name: aptly-resource
+  type: docker-image
+  source:
+    repository: opxhub/aptly-resource
+
+- name: email
+  type: docker-image
+  source:
+    repository: pcfseceng/email-resource
+
+resources: ####################################################################
+
+## Source repositories ##
+
+- name: ((repo))
+  type: git
+  source:
+    uri: https://github.com/open-switch/((repo))
+    branch: master
+
+- name: ((repo))-tag
+  type: git
+  source:
+    uri: https://github.com/open-switch/((repo))
+    branch: master
+    tag_filter: "debian/*"
+
+## CI configuration ##
+
+- name: concourse
+  type: git
+  source:
+    uri: https://github.com/open-switch/infra_concourse
+    branch: master
+
+- name: review-((repo))
+  type: gerrit
+  source:
+    url: https://review.openswitch.net
+    username: ((gerrit.username))
+    password: ((gerrit.password))
+    digest_auth: true
+    query: "status:open project:opx/((repo))"
+
+- name: aptly
+  type: aptly-resource
+  source:
+    api: http://aptly:8080/api
+
+- name: email
+  type: email
+  source:
+    smtp:
+      host: email-smtp.us-west-2.amazonaws.com
+      port: "587"
+      username: ((smtp.username))
+      password: ((smtp.password))
+    from: opx@openswitch.net
+    to:
+    -  tyler.heucke@dell.com
+
+jobs: #########################################################################
+
+## On commit ##
+
+- name: release-jessie
+  public: true
+  plan:
+  - aggregate:
+    - get: ((repo))
+      trigger: true
+    - get: concourse
+  - task: bump-version
+    file: concourse/tasks/debchange-git/task.yaml
+    input_mapping:
+      src: ((repo))
+    output_mapping:
+      src-artifacts: ((repo))-bumped
+  - task: build
+    privileged: true
+    file: concourse/tasks/git-buildpackage-jessie/task.yaml
+    input_mapping:
+      src: ((repo))-bumped
+    output_mapping:
+      src-artifacts: ((repo))-artifacts
+  - put: aptly
+    params:
+      aptly_repo: opx-unstable
+      publish_prefix: jessie
+      publish_dist: unstable
+      upload: ((repo))-artifacts
+  on_failure:
+    put: email
+    params:
+      subject_text: "${BUILD_JOB_NAME} for ${BUILD_PIPELINE_NAME} failed"
+      body_text: "((build-url))"
+
+- name: release-stretch
+  public: true
+  plan:
+  - aggregate:
+    - get: ((repo))
+      trigger: true
+    - get: concourse
+  - task: bump-version
+    file: concourse/tasks/debchange-git/task.yaml
+    input_mapping:
+      src: ((repo))
+    output_mapping:
+      src-artifacts: ((repo))-bumped
+  - task: build
+    privileged: true
+    file: concourse/tasks/git-buildpackage-stretch/task.yaml
+    input_mapping:
+      src: ((repo))-bumped
+    output_mapping:
+      src-artifacts: ((repo))-artifacts
+  - put: aptly
+    params:
+      aptly_repo: opx-unstable-stretch
+      publish_prefix: stretch
+      publish_dist: unstable
+      upload: ((repo))-artifacts
+  on_failure:
+    put: email
+    params:
+      subject_text: "${BUILD_JOB_NAME} for ${BUILD_PIPELINE_NAME} failed"
+      body_text: "((build-url))"
+
+## On tag debian/* ##
+
+- name: promote-jessie
+  public: true
+  plan:
+  - aggregate:
+    - get: ((repo))-tag
+      trigger: true
+    - get: concourse
+  - task: build
+    privileged: true
+    file: concourse/tasks/git-buildpackage-jessie/task.yaml
+    input_mapping:
+      src: ((repo))-tag
+    output_mapping:
+      src-artifacts: ((repo))-artifacts
+    params:
+      OPX_RELEASE: testing
+  - put: aptly
+    params:
+      aptly_repo: opx-testing
+      publish_prefix: jessie
+      publish_dist: testing
+      upload: ((repo))-artifacts
+  on_failure:
+    put: email
+    params:
+      subject_text: "${BUILD_JOB_NAME} for ${BUILD_PIPELINE_NAME} failed"
+      body_text: "((build-url))"
+
+- name: promote-stretch
+  public: true
+  plan:
+  - aggregate:
+    - get: ((repo))-tag
+      trigger: true
+    - get: concourse
+  - task: build
+    privileged: true
+    file: concourse/tasks/git-buildpackage-stretch/task.yaml
+    input_mapping:
+      src: ((repo))-tag
+    output_mapping:
+      src-artifacts: ((repo))-artifacts
+    params:
+      OPX_RELEASE: testing
+  - put: aptly
+    params:
+      aptly_repo: opx-stretch
+      publish_prefix: stretch
+      publish_dist: testing
+      upload: ((repo))-artifacts
+  on_failure:
+    put: email
+    params:
+      subject_text: "${BUILD_JOB_NAME} for ${BUILD_PIPELINE_NAME} failed"
+      body_text: "((build-url))"
+
+## On review ##
+
+- name: check-jessie
+  public: true
+  plan:
+  - aggregate:
+    - get: review-((repo))
+      trigger: true
+      version: every
+    - get: concourse
+  - task: build
+    attempts: 3
+    privileged: true
+    file: concourse/tasks/git-buildpackage-jessie/task.yaml
+    input_mapping:
+      src: review-((repo))
+    on_success:
+      put: review-((repo))
+      params:
+        repository: review-((repo))
+        message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} succeeded!"
+        labels: {Verified: 2}
+    on_failure:
+      put: review-((repo))
+      params:
+        repository: review-((repo))
+        message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} failed."
+        labels: {Verified: -1}
+
+- name: check-stretch
+  public: true
+  plan:
+  - aggregate:
+    - get: review-((repo))
+      trigger: true
+      version: every
+    - get: concourse
+  - task: build
+    attempts: 3
+    privileged: true
+    file: concourse/tasks/git-buildpackage-stretch/task.yaml
+    input_mapping:
+      src: review-((repo))
+    on_success:
+      put: review-((repo))
+      params:
+        repository: review-((repo))
+        message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} succeeded!"
+    on_failure:
+      put: review-((repo))
+      params:
+        repository: review-((repo))
+        message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} failed."

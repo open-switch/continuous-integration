@@ -40,16 +40,27 @@ DEBIAN_REPOS = [
 
 def update_pipelines(team: str, noninteractive: bool):
     for p in pipelines():
-        L.debug(f'Deploying {p.stem}...')
-        cmd = ['fly', '-t', team, 'set-pipeline',
-               '--pipeline', p.stem,
-               '--config', str(p)]
-        if noninteractive:
-            run(cmd + ['-n'])
+        if p.stem == 'opx-debian':
+            for r in DEBIAN_REPOS:
+                cmd = ['fly', '-t', team, 'set-pipeline',
+                       '--pipeline', r,
+                       '--config', str(p),
+                       '--var', f'repo={r}']
+                if noninteractive:
+                    run(cmd + ['-n'])
+                else:
+                    if input(f'Deploy {r} pipeline? [y] ') == 'y':
+                        run(cmd, input=b'y\n')
         else:
-            run(cmd, input=b'n\n')
-            if input('Update pipeline? [y] ') == 'y':
-                run(cmd, input=b'y\n')
+            L.info(f'Deploying {p.stem}...')
+            cmd = ['fly', '-t', team, 'set-pipeline',
+                   '--pipeline', p.stem,
+                   '--config', str(p)]
+            if noninteractive:
+                run(cmd + ['-n'])
+            else:
+                if input('Update pipeline? [y] ') == 'y':
+                    run(cmd, input=b'y\n')
 
 
 def unpause_pipelines(team: str):

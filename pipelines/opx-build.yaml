@@ -99,10 +99,6 @@ jobs: #########################################################################
       trigger: true
       version: every
     - get: concourse
-  - put: review-opx-build
-    params:
-      repository: review-opx-build
-      message: "Started ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME}"
   - task: build
     attempts: 3
     privileged: true
