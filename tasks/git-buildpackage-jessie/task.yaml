@@ -11,4 +11,4 @@ inputs:
 outputs:
   - name: src-artifacts
 run:
-  path: concourse/tasks/git-buildpackage/run.sh
+  path: concourse/tasks/git-buildpackage-jessie/run.sh
