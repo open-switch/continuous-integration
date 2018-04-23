@@ -1,0 +1,83 @@
+groups: #######################################################################
+
+- name: commit
+  jobs: [unstable-jessie]
+
+- name: review
+  jobs: [check-jessie]
+
+resource_types: ###############################################################
+
+- name: gerrit
+  type: docker-image
+  source:
+    repository: us.gcr.io/concourse-resources/gerrit-resource
+
+resources: ####################################################################
+
+## Source repository ##
+
+- name: opx-onie-installer
+  type: git
+  source:
+    uri: https://github.com/open-switch/opx-onie-installer
+    branch: master
+
+## CI configuration ##
+
+- name: concourse
+  type: git
+  source:
+    uri: https://github.com/open-switch/infra_concourse
+    branch: master
+
+- name: review-opx-onie-installer
+  type: gerrit
+  source:
+    url: https://review.openswitch.net
+    username: ((gerrit.username))
+    password: ((gerrit.password))
+    digest_auth: true
+    query: "status:open project:opx/opx-onie-installer"
+
+jobs: #########################################################################
+
+- name: unstable-jessie
+  public: true
+  plan:
+  - aggregate:
+    - get: opx-onie-installer
+      trigger: true
+    - get: concourse
+  - task: build
+    file: concourse/tasks/onie-installer-jessie/task.yaml
+    params:
+      DIST: unstable
+
+- name: check-jessie
+  public: true
+  plan:
+  - aggregate:
+    - get: review-opx-onie-installer
+      trigger: true
+      version: every
+    - get: concourse
+  - task: build
+    attempts: 3
+    file: concourse/tasks/onie-installer-jessie/task.yaml
+    input_mapping:
+      opx-onie-installer: review-opx-onie-installer
+    params:
+      DIST: unstable
+    on_success:
+      put: review-opx-onie-installer
+      params:
+        repository: review-opx-onie-installer
+        message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} succeeded!"
+        labels: {Verified: 2}
+    on_failure:
+      put: review-opx-onie-installer
+      params:
+        repository: review-opx-onie-installer
+        message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} failed."
+        labels: {Verified: -1}

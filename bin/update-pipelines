@@ -3,10 +3,11 @@
 
 import argparse
 import logging
-import subprocess
 import sys
 
 from pathlib import Path
+from subprocess import CalledProcessError, PIPE, run
+from typing import List
 
 L = logging.getLogger(__name__)
 L.addHandler(logging.NullHandler())
@@ -38,56 +39,24 @@ DEBIAN_REPOS = [
 ]
 
 
-def update_pipelines(team: str, noninteractive: bool):
-    for p in pipelines():
-        if p.stem == 'opx-debian':
-            for r in DEBIAN_REPOS:
-                cmd = ['fly', '-t', team, 'set-pipeline',
-                       '--pipeline', r,
-                       '--config', str(p),
-                       '--var', f'repo={r}']
-                if noninteractive:
-                    run(cmd + ['-n'])
-                else:
-                    if input(f'Deploy {r} pipeline? [y] ') == 'y':
-                        run(cmd, input=b'y\n')
-        else:
-            L.info(f'Deploying {p.stem}...')
-            cmd = ['fly', '-t', team, 'set-pipeline',
-                   '--pipeline', p.stem,
-                   '--config', str(p)]
-            if noninteractive:
-                run(cmd + ['-n'])
-            else:
-                if input('Update pipeline? [y] ') == 'y':
-                    run(cmd, input=b'y\n')
+def pipeline_cmd(team: str, pipeline: str, config: str) -> List[str]:
+    cmd = ['fly', '-t', team, 'set-pipeline', '-n',
+           '--pipeline', pipeline,
+           '--config', config]
+    if 'opx-debian' in config:
+        cmd += ['--var', f'repo={pipeline}']
+    return cmd
 
 
-def unpause_pipelines(team: str):
-    for p in pipelines():
-        cmd = ['fly', '-t', team, 'unpause-pipeline',
-               '--pipeline', p.stem]
-        run(cmd)
-
-
-def expose_pipelines(team: str):
-    for p in pipelines():
-        cmd = ['fly', '-t', team, 'expose-pipeline',
-               '--pipeline', p.stem]
-        run(cmd)
-
-
-def run(cmd, input=None):
+def set_pipeline(cmd: List[str]):
+    result = run(cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True)
     try:
-        L.debug(f'Running: {" ".join(cmd)}')
-        print(subprocess.check_output(cmd, input=input).decode('utf-8'))
-    except subprocess.CalledProcessError as e:
-        L.error(f'Error! Return code was {e.returncode}.')
+        result.check_returncode()
+    except CalledProcessError as e:
+        L.error(f'Command {e.cmd} returned non-zero exit status {e.returncode}.')
+        L.error(result.stderr)
         sys.exit(1)
-
-
-def pipelines():
-    return Path('pipelines').glob('*.yaml')
+    L.info(result.stdout)
 
 
 def main():
@@ -109,34 +78,30 @@ def main():
     )
 
     parser.add_argument(
-        '--noninteractive', '-n',
-        action='store_true',
-        help='No prompt for confirmation.',
-    )
-
-    parser.add_argument(
-        '--expose', '-e',
-        action='store_true',
-        help='Expose pipeline after setting.',
-    )
-
-    parser.add_argument(
-        '--unpause', '-u',
-        action='store_true',
-        help='Unpause pipeline after setting.',
+        'pipeline',
+        help='Pipeline to deploy. Can be "all".',
     )
 
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
     L.debug(args)
 
-    update_pipelines(args.team, args.noninteractive)
+    if args.pipeline == 'all':
+        L.info('Not implemented yet.')
+        for p in Path('pipelines').glob('*.yaml'):
+            pass
+    elif args.pipeline == 'opx-debian':
+        pipeline = Path(f'pipelines/{args.pipeline}.yaml')
+        for r in DEBIAN_REPOS:
+            set_pipeline(pipeline_cmd(args.team, r, str(pipeline)))
+    else:
+        pipeline = Path(f'pipelines/{args.pipeline}.yaml')
+        if not pipeline.exists():
+            L.error(f'Pipeline configuration file {pipeline} does not exist.')
+            L.error('Use "opx-debian" for any Debian package pipeline.')
+            sys.exit(1)
+        set_pipeline(pipeline_cmd(args.team, args.pipeline, str(pipeline)))
 
-    if args.unpause:
-        unpause_pipelines(args.team)
-
-    if args.expose:
-        expose_pipelines(args.team)
 
 if __name__ == '__main__':
     main()
