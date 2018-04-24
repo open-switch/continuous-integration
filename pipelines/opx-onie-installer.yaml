@@ -1,7 +1,9 @@
 groups: #######################################################################
 
-- name: commit
-  jobs: [unstable-jessie]
+- name: weekly
+  jobs:
+  - weekly-unstable-jessie
+  - weekly-testing-jessie
 
 - name: review
   jobs: [check-jessie]
@@ -40,19 +42,64 @@ resources: ####################################################################
     digest_auth: true
     query: "status:open project:opx/opx-onie-installer"
 
+- name: weekly
+  type: time
+  source:
+    interval: 168h
+
+- name: jessie-testing-installer
+  type: s3
+  source:
+    bucket: opx-installers
+    versioned_file: installers/PKGS_OPX-testing-jessie-installer-x86_64.bin
+    region_name: us-west-2
+    access_key_id: ((aws-s3.access-key))
+    secret_access_key: ((aws-s3.secret-key))
+
+- name: jessie-unstable-installer
+  type: s3
+  source:
+    bucket: opx-installers
+    versioned_file: installers/PKGS_OPX-unstable-jessie-installer-x86_64.bin
+    region_name: us-west-2
+    access_key_id: ((aws-s3.access-key))
+    secret_access_key: ((aws-s3.secret-key))
+
 jobs: #########################################################################
 
-- name: unstable-jessie
+- name: weekly-testing-jessie
   public: true
   plan:
   - aggregate:
-    - get: opx-onie-installer
+    - get: weekly
       trigger: true
+    - get: opx-onie-installer
+    - get: concourse
+  - task: build
+    file: concourse/tasks/onie-installer-jessie/task.yaml
+    params:
+      DIST: testing
+  - put: jessie-testing-installer
+    params:
+      file: opx-onie-installer-artifacts/PKGS_OPX-*.bin
+      acl: public-read
+
+- name: weekly-unstable-jessie
+  public: true
+  plan:
+  - aggregate:
+    - get: weekly
+      trigger: true
+    - get: opx-onie-installer
     - get: concourse
   - task: build
     file: concourse/tasks/onie-installer-jessie/task.yaml
     params:
       DIST: unstable
+  - put: jessie-unstable-installer
+    params:
+      file: opx-onie-installer-artifacts/PKGS_OPX-*.bin
+      acl: public-read
 
 - name: check-jessie
   public: true
