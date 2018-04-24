@@ -76,6 +76,7 @@ jobs: #########################################################################
     - get: opx-onie-installer
     - get: concourse
   - task: build
+    attempts: 3
     file: concourse/tasks/onie-installer-jessie/task.yaml
     params:
       DIST: testing
@@ -93,6 +94,7 @@ jobs: #########################################################################
     - get: opx-onie-installer
     - get: concourse
   - task: build
+    attempts: 3
     file: concourse/tasks/onie-installer-jessie/task.yaml
     params:
       DIST: unstable
