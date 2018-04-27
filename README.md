@@ -56,3 +56,29 @@ jobs:
         args: ["-c", "echo $HELLO"]
 ```
 
+## Deploy No-op Pipelines
+
+```bash
+repos=(
+ansible-opx-examples
+ansible-role-opx-acl
+ansible-role-opx-mac
+ansible-role-opx-qos
+ansible-role-opx-system
+opx-docs
+opx-manifest
+opx-mlnx-sdi-sys
+opx-northbound
+opx-test
+)
+
+fly -t prod login -n gerrit
+
+for r in "${repos[@]}"; do
+  fly -t prod set-pipeline     -p $r -c pipelines/gerrit/no-op.yaml -v repo=$r
+  fly -t prod expose-pipeline  -p $r
+  fly -t prod unpause-pipeline -p $r
+done
+
+fly -t prod login -n main
+```
