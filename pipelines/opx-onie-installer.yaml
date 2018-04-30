@@ -80,7 +80,8 @@ jobs: #########################################################################
     privileged: true
     file: concourse/tasks/onie-installer-jessie/task.yaml
     params:
-      DIST: testing
+      DIST: jessie
+      OPX_RELEASE: testing
   - put: jessie-testing-installer
     params:
       file: opx-onie-installer-artifacts/PKGS_OPX-*.bin
@@ -99,7 +100,8 @@ jobs: #########################################################################
     privileged: true
     file: concourse/tasks/onie-installer-jessie/task.yaml
     params:
-      DIST: unstable
+      DIST: jessie
+      OPX_RELEASE: unstable
   - put: jessie-unstable-installer
     params:
       file: opx-onie-installer-artifacts/PKGS_OPX-*.bin
@@ -120,7 +122,8 @@ jobs: #########################################################################
     input_mapping:
       opx-onie-installer: review-opx-onie-installer
     params:
-      DIST: unstable
+      DIST: jessie
+      OPX_RELEASE: unstable
     on_success:
       put: review-opx-onie-installer
       params:
