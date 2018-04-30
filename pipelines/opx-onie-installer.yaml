@@ -77,6 +77,7 @@ jobs: #########################################################################
     - get: concourse
   - task: build
     attempts: 3
+    privileged: true
     file: concourse/tasks/onie-installer-jessie/task.yaml
     params:
       DIST: testing
@@ -95,6 +96,7 @@ jobs: #########################################################################
     - get: concourse
   - task: build
     attempts: 3
+    privileged: true
     file: concourse/tasks/onie-installer-jessie/task.yaml
     params:
       DIST: unstable
@@ -113,6 +115,7 @@ jobs: #########################################################################
     - get: concourse
   - task: build
     attempts: 3
+    privileged: true
     file: concourse/tasks/onie-installer-jessie/task.yaml
     input_mapping:
       opx-onie-installer: review-opx-onie-installer
