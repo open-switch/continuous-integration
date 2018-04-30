@@ -8,6 +8,8 @@ set -x
 
 rsync -a opx-onie-installer/ /mnt/opx-onie-installer
 pushd /mnt
+  ./opx-onie-installer/build_opx_rootfs.sh "$DIST" amd64
+
   /opt/opx-build/scripts/opx_rel_pkgasm.py \
     -b opx-onie-installer/release_bp/OPX_dell_base.xml \
     --dist "$DIST" -n 0
