@@ -1,0 +1,14 @@
+---
+platform: linux
+image_resource:
+  type: docker-image
+  source:
+    repository: opxhub/build
+    tag: stretch
+inputs:
+  - name: concourse
+  - name: rootfs
+outputs:
+  - name: rootfs-artifacts
+run:
+  path: concourse/tasks/rootfs/run.sh
