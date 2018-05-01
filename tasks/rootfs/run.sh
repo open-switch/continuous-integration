@@ -6,6 +6,8 @@ set -o pipefail
 
 set -x
 
-./build.sh "$DIST" amd64
+pushd rootfs
+  ./build.sh "$DIST" amd64
+popd
 
-find /mnt -name 'opx-rootfs_*.tar.gz' -exec mv -t rootfs-artifacts/ {} +
+find rootfs -name 'opx-rootfs_*.tar.gz' -exec mv -t rootfs-artifacts/ {} +
