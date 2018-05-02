@@ -126,4 +126,3 @@ jobs: #########################################################################
       import_file: rootfs-artifacts/rootfs.tar.gz
       tag: rootfs-artifacts/version
       additional_tags: rootfs-artifacts/tags
-      tag_as_latest: true
