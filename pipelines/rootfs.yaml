@@ -104,3 +104,26 @@ jobs: #########################################################################
       tag: rootfs-artifacts/version
       additional_tags: rootfs-artifacts/tags
       tag_as_latest: true
+
+- name: release-stretch-docker
+  public: true
+  plan:
+  - aggregate:
+    - get: stretch-rootfs-tarball
+      trigger: true
+      passed: [release-stretch]
+    - get: rootfs
+      passed: [release-stretch]
+    - get: concourse
+  - task: rootfs-image-prep
+    file: concourse/tasks/rootfs-image-prep/task.yaml
+    params:
+      DIST: stretch
+    input_mapping:
+      rootfs-tarball: stretch-rootfs-tarball
+  - put: rootfs-image
+    params:
+      import_file: rootfs-artifacts/rootfs.tar.gz
+      tag: rootfs-artifacts/version
+      additional_tags: rootfs-artifacts/tags
+      tag_as_latest: true
