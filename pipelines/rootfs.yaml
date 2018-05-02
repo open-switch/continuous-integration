@@ -1,0 +1,74 @@
+resources: ####################################################################
+
+## Source repository ##
+
+- name: rootfs
+  type: git
+  source:
+    uri: https://github.com/open-switch/rootfs
+    branch: master
+    tag_filter: "[[:digit:]]*.[[:digit:]]*.[[:digit:]]*"
+
+## CI configuration ##
+
+- name: concourse
+  type: git
+  source:
+    uri: https://github.com/open-switch/infra_concourse
+    branch: master
+
+- name: jessie-rootfs
+  type: s3
+  source:
+    bucket: archive.openswitch.net
+    regexp: "rootfs/opx-rootfs_(.*-jessie)_amd64.tar.gz"
+    region_name: us-west-2
+    access_key_id: ((aws-s3.access-key))
+    secret_access_key: ((aws-s3.secret-key))
+
+- name: stretch-rootfs
+  type: s3
+  source:
+    bucket: archive.openswitch.net
+    regexp: "rootfs/opx-rootfs_(.*-stretch)_amd64.tar.gz"
+    region_name: us-west-2
+    access_key_id: ((aws-s3.access-key))
+    secret_access_key: ((aws-s3.secret-key))
+
+jobs: #########################################################################
+
+- name: release-jessie
+  public: true
+  plan:
+  - aggregate:
+    - get: rootfs
+      trigger: true
+    - get: concourse
+  - task: build
+    attempts: 2
+    privileged: true
+    file: concourse/tasks/rootfs/task.yaml
+    params:
+      DIST: jessie
+  - put: jessie-rootfs
+    params:
+      file: rootfs-artifacts/opx-rootfs_*_amd64.tar.gz
+      acl: public-read
+
+- name: release-stretch
+  public: true
+  plan:
+  - aggregate:
+    - get: rootfs
+      trigger: true
+    - get: concourse
+  - task: build
+    attempts: 2
+    privileged: true
+    file: concourse/tasks/rootfs/task.yaml
+    params:
+      DIST: stretch
+  - put: stretch-rootfs
+    params:
+      file: rootfs-artifacts/opx-rootfs_*_amd64.tar.gz
+      acl: public-read

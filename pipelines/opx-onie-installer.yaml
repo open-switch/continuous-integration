@@ -50,7 +50,7 @@ resources: ####################################################################
 - name: jessie-testing-installer
   type: s3
   source:
-    bucket: opx-installers
+    bucket: archive.openswitch.net
     versioned_file: installers/PKGS_OPX-testing-jessie-installer-x86_64.bin
     region_name: us-west-2
     access_key_id: ((aws-s3.access-key))
@@ -59,7 +59,7 @@ resources: ####################################################################
 - name: jessie-unstable-installer
   type: s3
   source:
-    bucket: opx-installers
+    bucket: archive.openswitch.net
     versioned_file: installers/PKGS_OPX-unstable-jessie-installer-x86_64.bin
     region_name: us-west-2
     access_key_id: ((aws-s3.access-key))
