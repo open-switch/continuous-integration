@@ -1,3 +1,22 @@
+groups: #######################################################################
+
+- name: tag
+  jobs:
+  - release-jessie
+  - release-jessie-docker
+  - release-stretch
+  - release-stretch-docker
+
+- name: review
+  jobs: [pull-request]
+
+resource_types: ###############################################################
+
+- name: pull-request
+  type: docker-image
+  source:
+    repository: jtarchie/pr
+
 resources: ####################################################################
 
 ## Source repository ##
@@ -8,6 +27,12 @@ resources: ####################################################################
     uri: https://github.com/open-switch/rootfs
     branch: master
     tag_filter: "[[:digit:]]*.[[:digit:]]*.[[:digit:]]*"
+
+- name: rootfs-pr
+  type: pull-request
+  source:
+    access_token: ((github-pr))
+    repo: open-switch/rootfs
 
 ## CI configuration ##
 
@@ -126,3 +151,47 @@ jobs: #########################################################################
       import_file: rootfs-artifacts/rootfs.tar.gz
       tag: rootfs-artifacts/version
       additional_tags: rootfs-artifacts/tags
+
+- name: pull-request
+  public: true
+  plan:
+  - aggregate:
+    - get: rootfs-pr
+      trigger: true
+      version: every
+    - get: concourse
+  - aggregate:
+    - do:
+      - put: rootfs-pr
+        params: {path: rootfs-pr, status: pending, context: jessie}
+      - task: check-jessie
+        attempts: 2
+        privileged: true
+        file: concourse/tasks/rootfs/task.yaml
+        params:
+          DIST: jessie
+        input_mapping:
+          rootfs: rootfs-pr
+        on_success:
+          put: rootfs-pr
+          params: {path: rootfs-pr, status: success, context: jessie}
+        on_failure:
+          put: rootfs-pr
+          params: {path: rootfs-pr, status: failure, context: jessie}
+    - do:
+      - put: rootfs-pr
+        params: {path: rootfs-pr, status: pending, context: stretch}
+      - task: check-stretch
+        attempts: 2
+        privileged: true
+        file: concourse/tasks/rootfs/task.yaml
+        params:
+          DIST: stretch
+        input_mapping:
+          rootfs: rootfs-pr
+        on_success:
+          put: rootfs-pr
+          params: {path: rootfs-pr, status: success, context: stretch}
+        on_failure:
+          put: rootfs-pr
+          params: {path: rootfs-pr, status: failure, context: stretch}
