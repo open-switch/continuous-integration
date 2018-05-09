@@ -1,3 +1,11 @@
+groups: #######################################################################
+
+- name: commit
+  jobs: [codecov, pylama]
+
+- name: review
+  jobs: [pull-request-codecov, pull-request-pylama]
+
 resource_types: ###############################################################
 
 - name: pull-request
@@ -42,6 +50,18 @@ jobs: #########################################################################
     file: concourse/tasks/codecov-py/task.yaml
     params:
       CODECOV_TOKEN: ((codecov-token))
+    input_mapping:
+      src: tools_opx-py
+
+- name: pylama
+  public: true
+  plan:
+  - aggregate:
+    - get: tools_opx-py
+      trigger: true
+    - get: concourse
+  - task: pylama
+    file: concourse/tasks/pylama/task.yaml
     input_mapping:
       src: tools_opx-py
 
