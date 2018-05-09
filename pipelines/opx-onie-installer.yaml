@@ -25,14 +25,6 @@ resources: ####################################################################
     uri: https://github.com/open-switch/opx-onie-installer
     branch: master
 
-## CI configuration ##
-
-- name: concourse
-  type: git
-  source:
-    uri: https://github.com/open-switch/infra_concourse
-    branch: master
-
 - name: review-opx-onie-installer
   type: gerrit
   source:
@@ -42,10 +34,7 @@ resources: ####################################################################
     digest_auth: true
     query: "status:open project:opx/opx-onie-installer"
 
-- name: weekly
-  type: time
-  source:
-    interval: 168h
+## Artifacts ##
 
 - name: jessie-testing-installer
   type: s3
@@ -64,6 +53,19 @@ resources: ####################################################################
     region_name: us-west-2
     access_key_id: ((aws-s3.access-key))
     secret_access_key: ((aws-s3.secret-key))
+
+## CI configuration ##
+
+- name: concourse
+  type: git
+  source:
+    uri: https://github.com/open-switch/infra_concourse
+    branch: master
+
+- name: weekly
+  type: time
+  source:
+    interval: 168h
 
 jobs: #########################################################################
 
