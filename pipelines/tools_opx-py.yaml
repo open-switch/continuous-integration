@@ -1,0 +1,90 @@
+resource_types: ###############################################################
+
+- name: pull-request
+  type: docker-image
+  source:
+    repository: jtarchie/pr
+
+resources: ####################################################################
+
+## Source repository ##
+
+- name: tools_opx-py
+  type: git
+  source:
+    uri: https://github.com/open-switch/tools_opx-py
+    branch: master
+
+- name: tools_opx-py-pr
+  type: pull-request
+  source:
+    access_token: ((github-pr))
+    repo: open-switch/tools_opx-py
+
+## CI configuration ##
+
+- name: concourse
+  type: git
+  source:
+    uri: https://github.com/open-switch/infra_concourse
+    branch: master
+
+jobs: #########################################################################
+
+- name: codecov
+  public: true
+  plan:
+  - aggregate:
+    - get: tools_opx-py
+      trigger: true
+    - get: concourse
+  - task: codecov
+    file: concourse/tasks/codecov-py/task.yaml
+    params:
+      CODECOV_TOKEN: ((codecov-token))
+    input_mapping:
+      src: tools_opx-py
+
+- name: pull-request-codecov
+  public: true
+  plan:
+  - aggregate:
+    - get: tools_opx-py-pr
+      trigger: true
+      version: every
+    - get: concourse
+  - put: tools_opx-py-pr
+    params: {path: tools_opx-py-pr, status: pending, context: codecov}
+  - task: codecov
+    file: concourse/tasks/codecov-py/task.yaml
+    params:
+      CODECOV_TOKEN: ((codecov-token))
+    input_mapping:
+      src: tools_opx-py-pr
+    on_success:
+      put: tools_opx-py-pr
+      params: {path: tools_opx-py-pr, status: success, context: codecov}
+    on_failure:
+      put: tools_opx-py-pr
+      params: {path: tools_opx-py-pr, status: failure, context: codecov}
+
+- name: pull-request-pylama
+  public: true
+  plan:
+  - aggregate:
+    - get: tools_opx-py-pr
+      trigger: true
+      version: every
+    - get: concourse
+  - put: tools_opx-py-pr
+    params: {path: tools_opx-py-pr, status: pending, context: pylama}
+  - task: pylama
+    file: concourse/tasks/pylama/task.yaml
+    input_mapping:
+      src: tools_opx-py-pr
+    on_success:
+      put: tools_opx-py-pr
+      params: {path: tools_opx-py-pr, status: success, context: pylama}
+    on_failure:
+      put: tools_opx-py-pr
+      params: {path: tools_opx-py-pr, status: failure, context: pylama}
