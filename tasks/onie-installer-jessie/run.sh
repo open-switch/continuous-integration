@@ -12,6 +12,11 @@ pushd /mnt
   /opt/opx-build/scripts/opx_rel_pkgasm.py \
     -b opx-onie-installer/release_bp/OPX_dell_base.xml \
     --dist "$OPX_RELEASE" -n 0
+
+  for f in PKGS_OPX-*.bin; do
+    sha256sum "$f" >"$f.sha256"
+  done
 popd
 
 find /mnt -name 'PKGS*' -exec mv -t opx-onie-installer-artifacts/ {} +
+ls -lh opx-onie-installer-artifacts/

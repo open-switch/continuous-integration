@@ -45,11 +45,29 @@ resources: ####################################################################
     access_key_id: ((aws-s3.access-key))
     secret_access_key: ((aws-s3.secret-key))
 
+- name: jessie-testing-installer-checksum
+  type: s3
+  source:
+    bucket: archive.openswitch.net
+    versioned_file: installers/PKGS_OPX-testing-jessie-installer-x86_64.bin.sha256
+    region_name: us-west-2
+    access_key_id: ((aws-s3.access-key))
+    secret_access_key: ((aws-s3.secret-key))
+
 - name: jessie-unstable-installer
   type: s3
   source:
     bucket: archive.openswitch.net
     versioned_file: installers/PKGS_OPX-unstable-jessie-installer-x86_64.bin
+    region_name: us-west-2
+    access_key_id: ((aws-s3.access-key))
+    secret_access_key: ((aws-s3.secret-key))
+
+- name: jessie-unstable-installer-checksum
+  type: s3
+  source:
+    bucket: archive.openswitch.net
+    versioned_file: installers/PKGS_OPX-unstable-jessie-installer-x86_64.bin.sha256
     region_name: us-west-2
     access_key_id: ((aws-s3.access-key))
     secret_access_key: ((aws-s3.secret-key))
@@ -88,6 +106,10 @@ jobs: #########################################################################
     params:
       file: opx-onie-installer-artifacts/PKGS_OPX-*.bin
       acl: public-read
+  - put: jessie-testing-installer-checksum
+    params:
+      file: opx-onie-installer-artifacts/PKGS_OPX-*.bin.sha256
+      acl: public-read
 
 - name: weekly-unstable-jessie
   public: true
@@ -107,6 +129,10 @@ jobs: #########################################################################
   - put: jessie-unstable-installer
     params:
       file: opx-onie-installer-artifacts/PKGS_OPX-*.bin
+      acl: public-read
+  - put: jessie-unstable-installer-checksum
+    params:
+      file: opx-onie-installer-artifacts/PKGS_OPX-*.bin.sha256
       acl: public-read
 
 - name: check-jessie
