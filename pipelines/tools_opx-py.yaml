@@ -34,7 +34,7 @@ resources: ####################################################################
 - name: concourse
   type: git
   source:
-    uri: https://github.com/open-switch/infra_concourse
+    uri: https://github.com/open-switch/continuous-integration
     branch: master
 
 jobs: #########################################################################

@@ -70,6 +70,9 @@ opx-manifest
 opx-mlnx-sdi-sys
 opx-northbound
 opx-test
+chef-opx-examples
+puppet-opx-examples
+salt-opx-examples
 )
 
 fly -t prod login -n gerrit
