@@ -6,7 +6,7 @@ groups: #######################################################################
 - name: weekly
   jobs:
   - weekly-unstable-jessie
-  - weekly-testing-jessie
+  - weekly-stable-jessie
 
 - name: review
   jobs: [check-jessie]
@@ -57,20 +57,20 @@ resources: ####################################################################
     access_key_id: ((aws-s3.access-key))
     secret_access_key: ((aws-s3.secret-key))
 
-- name: jessie-testing-installer
+- name: jessie-stable-installer
   type: s3
   source:
     bucket: archive.openswitch.net
-    versioned_file: installers/PKGS_OPX-testing-jessie-installer-x86_64.bin
+    versioned_file: installers/stable/Dell-EMC/PKGS_OPX-stable-jessie-installer-x86_64.bin
     region_name: us-west-2
     access_key_id: ((aws-s3.access-key))
     secret_access_key: ((aws-s3.secret-key))
 
-- name: jessie-testing-installer-checksum
+- name: jessie-stable-installer-checksum
   type: s3
   source:
     bucket: archive.openswitch.net
-    versioned_file: installers/PKGS_OPX-testing-jessie-installer-x86_64.bin.sha256
+    versioned_file: installers/stable/Dell-EMC/PKGS_OPX-stable-jessie-installer-x86_64.bin.sha256
     region_name: us-west-2
     access_key_id: ((aws-s3.access-key))
     secret_access_key: ((aws-s3.secret-key))
@@ -79,7 +79,7 @@ resources: ####################################################################
   type: s3
   source:
     bucket: archive.openswitch.net
-    versioned_file: installers/PKGS_OPX-unstable-jessie-installer-x86_64.bin
+    versioned_file: installers/unstable/Dell-EMC/PKGS_OPX-unstable-jessie-installer-x86_64.bin
     region_name: us-west-2
     access_key_id: ((aws-s3.access-key))
     secret_access_key: ((aws-s3.secret-key))
@@ -88,7 +88,7 @@ resources: ####################################################################
   type: s3
   source:
     bucket: archive.openswitch.net
-    versioned_file: installers/PKGS_OPX-unstable-jessie-installer-x86_64.bin.sha256
+    versioned_file: installers/unstable/Dell-EMC/PKGS_OPX-unstable-jessie-installer-x86_64.bin.sha256
     region_name: us-west-2
     access_key_id: ((aws-s3.access-key))
     secret_access_key: ((aws-s3.secret-key))
@@ -130,7 +130,7 @@ jobs: #########################################################################
       file: opx-onie-installer-artifacts/PKGS_OPX-*.bin.sha256
       acl: public-read
 
-- name: weekly-testing-jessie
+- name: weekly-stable-jessie
   public: true
   plan:
   - aggregate:
@@ -144,12 +144,12 @@ jobs: #########################################################################
     file: concourse/tasks/onie-installer-jessie/task.yaml
     params:
       DIST: jessie
-      OPX_RELEASE: testing
-  - put: jessie-testing-installer
+      OPX_RELEASE: stable
+  - put: jessie-stable-installer
     params:
       file: opx-onie-installer-artifacts/PKGS_OPX-*.bin
       acl: public-read
-  - put: jessie-testing-installer-checksum
+  - put: jessie-stable-installer-checksum
     params:
       file: opx-onie-installer-artifacts/PKGS_OPX-*.bin.sha256
       acl: public-read
