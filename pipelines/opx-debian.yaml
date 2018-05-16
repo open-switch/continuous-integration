@@ -7,7 +7,7 @@ groups: #######################################################################
   jobs: [promote-jessie, promote-stretch]
 
 - name: review
-  jobs: [check-jessie, check-stretch]
+  jobs: [check-jessie, check-stretch, pull-request-jessie, pull-request-stretch]
 
 resource_types: ###############################################################
 
@@ -15,6 +15,11 @@ resource_types: ###############################################################
   type: docker-image
   source:
     repository: us.gcr.io/concourse-resources/gerrit-resource
+
+- name: pull-request
+  type: docker-image
+  source:
+    repository: jtarchie/pr
 
 - name: aptly-resource
   type: docker-image
@@ -42,6 +47,12 @@ resources: ####################################################################
     uri: https://github.com/open-switch/((repo))
     branch: master
     tag_filter: "debian/*"
+
+- name: ((repo))-pr
+  type: pull-request
+  source:
+    access_token: ((github-pr))
+    repo: open-switch/((repo))
 
 ## CI configuration ##
 
@@ -256,3 +267,47 @@ jobs: #########################################################################
       params:
         repository: review-((repo))
         message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} failed."
+
+- name: pull-request-jessie
+  public: true
+  plan:
+  - aggregate:
+    - get: ((repo))-pr
+      trigger: false
+      version: every
+    - get: concourse
+  - put: ((repo))-pr
+    params: {path: ((repo))-pr, status: pending, context: jessie}
+  - task: build
+    attempts: 3
+    file: concourse/tasks/git-buildpackage-jessie/task.yaml
+    input_mapping:
+      src: ((repo))-pr
+    on_success:
+      put: ((repo))-pr
+      params: {path: ((repo))-pr, status: success, context: jessie}
+    on_failure:
+      put: ((repo))-pr
+      params: {path: ((repo))-pr, status: failure, context: jessie}
+
+- name: pull-request-stretch
+  public: true
+  plan:
+  - aggregate:
+    - get: ((repo))-pr
+      trigger: false
+      version: every
+    - get: concourse
+  - put: ((repo))-pr
+    params: {path: ((repo))-pr, status: pending, context: stretch}
+  - task: build
+    attempts: 3
+    file: concourse/tasks/git-buildpackage-stretch/task.yaml
+    input_mapping:
+      src: ((repo))-pr
+    on_success:
+      put: ((repo))-pr
+      params: {path: ((repo))-pr, status: success, context: stretch}
+    on_failure:
+      put: ((repo))-pr
+      params: {path: ((repo))-pr, status: failure, context: stretch}
