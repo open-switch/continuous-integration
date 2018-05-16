@@ -1,7 +1,7 @@
 groups: #######################################################################
 
 - name: release
-  jobs: [release-2.3.1-rc1]
+  jobs: [release-2.3.1]
 
 - name: weekly
   jobs:
@@ -39,20 +39,20 @@ resources: ####################################################################
 
 ## Artifacts ##
 
-- name: 2.3.1-rc1-installer
+- name: 2.3.1-installer
   type: s3
   source:
     bucket: archive.openswitch.net
-    versioned_file: installers/2.3.1/Dell-EMC/PKGS_OPX-2.3.1-rc1-installer-x86_64.bin
+    versioned_file: installers/2.3.1/Dell-EMC/PKGS_OPX-2.3.1-installer-x86_64.bin
     region_name: us-west-2
     access_key_id: ((aws-s3.access-key))
     secret_access_key: ((aws-s3.secret-key))
 
-- name: 2.3.1-rc1-installer-checksum
+- name: 2.3.1-installer-checksum
   type: s3
   source:
     bucket: archive.openswitch.net
-    versioned_file: installers/2.3.1/Dell-EMC/PKGS_OPX-2.3.1-rc1-installer-x86_64.bin.sha256
+    versioned_file: installers/2.3.1/Dell-EMC/PKGS_OPX-2.3.1-installer-x86_64.bin.sha256
     region_name: us-west-2
     access_key_id: ((aws-s3.access-key))
     secret_access_key: ((aws-s3.secret-key))
@@ -108,7 +108,7 @@ resources: ####################################################################
 
 jobs: #########################################################################
 
-- name: release-2.3.1-rc1
+- name: release-2.3.1
   public: true
   plan:
   - aggregate:
@@ -120,12 +120,12 @@ jobs: #########################################################################
     file: concourse/tasks/onie-installer-jessie/task.yaml
     params:
       DIST: jessie
-      OPX_RELEASE: 2.3.1-rc1
-  - put: 2.3.1-rc1-installer
+      OPX_RELEASE: 2.3.1
+  - put: 2.3.1-installer
     params:
       file: opx-onie-installer-artifacts/PKGS_OPX-*.bin
       acl: public-read
-  - put: 2.3.1-rc1-installer-checksum
+  - put: 2.3.1-installer-checksum
     params:
       file: opx-onie-installer-artifacts/PKGS_OPX-*.bin.sha256
       acl: public-read
