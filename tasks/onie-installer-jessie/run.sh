@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
-set -o errexit
-set -o nounset
-set -o pipefail
-
-set -x
-
 if [[ -n "$SUFFIX" ]]; then
   SUFFIX="-s '$SUFFIX'"
 else
   SUFFIX=""
 fi
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+set -x
 
 rsync -a opx-onie-installer/ /mnt/opx-onie-installer
 
