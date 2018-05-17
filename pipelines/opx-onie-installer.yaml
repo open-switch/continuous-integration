@@ -9,7 +9,7 @@ groups: #######################################################################
   - weekly-stable-jessie
 
 - name: review
-  jobs: [check-jessie]
+  jobs: [check-jessie, pull-request-jessie]
 
 resource_types: ###############################################################
 
@@ -17,6 +17,11 @@ resource_types: ###############################################################
   type: docker-image
   source:
     repository: us.gcr.io/concourse-resources/gerrit-resource
+
+- name: pull-request
+  type: docker-image
+  source:
+    repository: jtarchie/pr
 
 resources: ####################################################################
 
@@ -27,6 +32,12 @@ resources: ####################################################################
   source:
     uri: https://github.com/open-switch/opx-onie-installer
     branch: master
+
+- name: opx-onie-installer-pr
+  type: pull-request
+  source:
+    access_token: ((github-pr))
+    repo: open-switch/opx-onie-installer
 
 - name: review-opx-onie-installer
   type: gerrit
@@ -207,3 +218,25 @@ jobs: #########################################################################
         repository: review-opx-onie-installer
         message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} failed."
         labels: {Verified: -1}
+
+- name: pull-request-jessie
+  public: true
+  plan:
+  - aggregate:
+    - get: opx-onie-installer-pr
+      trigger: false
+      version: every
+    - get: concourse
+  - put: opx-onie-installer-pr
+    params: {path: opx-onie-installer-pr, status: pending, context: jessie}
+  - task: build
+    attempts: 3
+    file: concourse/tasks/onie-installer-jessie/task.yaml
+    input_mapping:
+      opx-onie-installer: opx-onie-installer-pr
+    on_success:
+      put: opx-onie-installer-pr
+      params: {path: opx-onie-installer-pr, status: success, context: jessie}
+    on_failure:
+      put: opx-onie-installer-pr
+      params: {path: opx-onie-installer-pr, status: failure, context: jessie}
