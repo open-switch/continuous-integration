@@ -267,7 +267,7 @@ jobs: #########################################################################
   plan:
   - aggregate:
     - get: opx-core-pr
-      trigger: false
+      trigger: true
       version: every
     - get: concourse
   - put: opx-core-pr
@@ -289,7 +289,7 @@ jobs: #########################################################################
   plan:
   - aggregate:
     - get: opx-core-pr
-      trigger: false
+      trigger: true
       version: every
     - get: concourse
   - put: opx-core-pr

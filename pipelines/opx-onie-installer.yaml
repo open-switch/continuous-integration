@@ -224,7 +224,7 @@ jobs: #########################################################################
   plan:
   - aggregate:
     - get: opx-onie-installer-pr
-      trigger: false
+      trigger: true
       version: every
     - get: concourse
   - put: opx-onie-installer-pr

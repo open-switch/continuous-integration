@@ -205,16 +205,18 @@ jobs: #########################################################################
   plan:
   - aggregate:
     - get: sai-pr
-      trigger: false
+      trigger: true
       version: every
     - get: concourse
   - put: sai-pr
     params: {path: sai-pr, status: pending, context: jessie}
   - task: build
     attempts: 3
-    file: concourse/tasks/dpkg-deb-jessie/task.yaml
+    file: concourse/tasks/git-buildpackage-jessie/task.yaml
     input_mapping:
       src: sai-pr
+    params:
+      OPX_RELEASE: unstable
     on_success:
       put: sai-pr
       params: {path: sai-pr, status: success, context: jessie}
@@ -227,16 +229,18 @@ jobs: #########################################################################
   plan:
   - aggregate:
     - get: sai-pr
-      trigger: false
+      trigger: true
       version: every
     - get: concourse
   - put: sai-pr
     params: {path: sai-pr, status: pending, context: stretch}
   - task: build
     attempts: 3
-    file: concourse/tasks/dpkg-deb-stretch/task.yaml
+    file: concourse/tasks/git-buildpackage-stretch/task.yaml
     input_mapping:
       src: sai-pr
+    params:
+      OPX_RELEASE: unstable
     on_success:
       put: sai-pr
       params: {path: sai-pr, status: success, context: stretch}

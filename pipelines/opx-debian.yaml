@@ -273,7 +273,7 @@ jobs: #########################################################################
   plan:
   - aggregate:
     - get: ((repo))-pr
-      trigger: false
+      trigger: true
       version: every
     - get: concourse
   - put: ((repo))-pr
@@ -295,7 +295,7 @@ jobs: #########################################################################
   plan:
   - aggregate:
     - get: ((repo))-pr
-      trigger: false
+      trigger: true
       version: every
     - get: concourse
   - put: ((repo))-pr
