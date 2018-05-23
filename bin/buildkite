@@ -87,6 +87,21 @@ class Pipeline:
         L.debug(f'checking if {self.name} pipeline exists')
         return requests.get(f'{API}/{self.name}').status_code == 200
 
+    def create_webhook(self, url: str) -> bool:
+        """Returns True if webhook is created successfully."""
+        body = {
+            'name': 'web',
+            'active': True,
+            'events': ['deployment', 'pull_request', 'push'],
+            'config': {
+                'url': url,
+                'content_type': 'json',
+            },
+        }
+        api = f'https://api.github.com/repos/open-switch/{self.name}/hooks'
+        res = requests.post(api, json=body)
+        return res.status_code == 201
+
     def create(self) -> str:
         """Creates pipeline if it doesn't already exist.
 
@@ -100,7 +115,11 @@ class Pipeline:
         pipeline = yaml.safe_load(self.file.open().read())
         res = requests.post(f'{API}', json=pipeline)
         res.raise_for_status()
-        return json.dumps(res.json(), indent=4, sort_keys=True)
+
+        if not self.create_webhook(res.json()['provider']['webhook_url']):
+            L.warning('Could not create webhook. Please create it manually.')
+
+        return 'Created!'
 
     def read(self) -> str:
         """Retrieves current pipeline configuration from Buildkite."""
@@ -126,7 +145,7 @@ class Pipeline:
         pipeline = yaml.safe_load(self.file.open().read())
         res = requests.patch(f'{API}/{self.name}', json=pipeline)
         res.raise_for_status()
-        return json.dumps(res.json(), indent=4, sort_keys=True)
+        return 'Updated!'
 
     def delete(self) -> str:
         """Deletes pipeline if it already exists."""
@@ -137,7 +156,7 @@ class Pipeline:
 
         res = requests.delete(f'{API}/{self.name}')
         res.raise_for_status()
-        return 'deleted'
+        return 'Deleted.'
 
 
 def main():
