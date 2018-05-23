@@ -1,0 +1,37 @@
+steps:
+  - label: ":terraform: plan"
+    command:
+      - terraform init -input=false
+      - terraform plan -input=false -out=tfplan
+    artifact_paths: tfplan
+    plugins:
+      docker#v1.1.1:
+        image: hashicorp/terraform
+        environment:
+          - AWS_ACCESS_KEY_ID
+          - AWS_SECRET_ACCESS_KEY
+          - TF_VAR_github_access_token
+    agents:
+      queue: deploy
+    concurrency: 1
+    concurrency_group: terraform/github
+
+  - wait
+
+  - label: ':terraform: apply'
+    branches: 'master'
+    command:
+      - buildkite-agent artifact download tfplan .
+      - terraform init -input=false
+      - terraform apply -input=false tfplan
+    plugins:
+      docker#v1.1.1:
+        image: hashicorp/terraform
+        environment:
+          - AWS_ACCESS_KEY_ID
+          - AWS_SECRET_ACCESS_KEY
+          - TF_VAR_github_access_token
+    agents:
+      queue: deploy
+    concurrency: 1
+    concurrency_group: terraform/github
