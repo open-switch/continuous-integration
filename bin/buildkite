@@ -1,0 +1,175 @@
+#!/usr/bin/env python3.6
+"""CRUD for Buildkite pipelines. Reads from YAML files."""
+
+import argparse
+import errno
+import logging
+import json
+import os
+import sys
+
+from pathlib import Path
+
+import requests
+import yaml
+
+L = logging.getLogger('Buildkite')
+L.addHandler(logging.NullHandler())
+
+API = 'https://api.buildkite.com/v2/organizations/opx/pipelines'
+
+DEBIAN_REPOS = [
+    'SAI',
+    'opx-alarm',
+    'opx-base-model',
+    'opx-common-utils',
+    'opx-cps',
+    'opx-db-sql',
+    'opx-logging',
+    'opx-nas-acl',
+    'opx-nas-common',
+    'opx-nas-daemon',
+    'opx-nas-interface',
+    'opx-nas-l2',
+    'opx-nas-l3',
+    'opx-nas-linux',
+    'opx-nas-ndi',
+    'opx-nas-ndi-api',
+    'opx-nas-qos',
+    'opx-northbound',
+    'opx-pas',
+    'opx-platform-config',
+    'opx-sai-vm',
+    'opx-sdi-sys',
+    'opx-snmp',
+    'opx-tmpctl',
+    'opx-tools',
+]
+
+
+ALL_REPOS = DEBIAN_REPOS + [
+    'continuous-integration',
+    'github',
+    'opx-build',
+    'opx-core',
+    'opx-docs',
+    'opx-manifest',
+    'opx-northbound',
+    'opx-onie-installer',
+    'opx-test',
+    'rootfs',
+    'tools_opx-py',
+]
+
+
+def fatal(msg: str) -> None:
+    """Aborts."""
+    L.error(msg)
+    sys.exit(1)
+
+
+class Pipeline:
+    """Represents a Buildkite pipeline."""
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.file = Path(f'buildkite/{name}.yaml')
+
+        if not self.file.exists():
+            if name in DEBIAN_REPOS:
+                self.file = Path('buildkite/opx-debian.yaml')
+            else:
+                raise FileNotFoundError(errno.ENOENT,
+                                        os.strerror(errno.ENOENT),
+                                        str(self.file))
+
+    def exists(self) -> bool:
+        """Returns True if Buildkite says the pipeline exists."""
+        L.debug(f'checking if {self.name} pipeline exists')
+        return requests.get(f'{API}/{self.name}').status_code == 200
+
+    def create(self) -> str:
+        """Creates pipeline if it doesn't already exist.
+
+        Pipeline configuration is converted to json and pushed.
+        """
+        if self.exists():
+            fatal(f'Pipeline {self.name} already exists')
+        else:
+            L.info(f'Running create on {self.name} with {self.file}')
+
+        pipeline = yaml.safe_load(self.file.open().read())
+        res = requests.post(f'{API}', json=pipeline)
+        res.raise_for_status()
+        return json.dumps(res.json(), indent=4, sort_keys=True)
+
+    def read(self) -> str:
+        """Retrieves current pipeline configuration from Buildkite."""
+        if not self.exists():
+            fatal(f'Pipeline {self.name} does not exist')
+        else:
+            L.info(f'Running read on {self.name}')
+
+        res = requests.get(f'{API}/{self.name}')
+        res.raise_for_status()
+        return json.dumps(res.json(), indent=4, sort_keys=True)
+
+    def update(self) -> str:
+        """Updates pipeline if it already exists.
+
+        Pipeline configuration is converted to json and pushed.
+        """
+        if not self.exists():
+            fatal(f'Pipeline {self.name} does not exist')
+        else:
+            L.info(f'Running update on {self.name} with {self.file}')
+
+        pipeline = yaml.safe_load(self.file.open().read())
+        res = requests.patch(f'{API}/{self.name}', json=pipeline)
+        res.raise_for_status()
+        return json.dumps(res.json(), indent=4, sort_keys=True)
+
+    def delete(self) -> str:
+        """Deletes pipeline if it already exists."""
+        if not self.exists():
+            fatal(f'Pipeline {self.name} does not exist')
+        else:
+            L.info(f'Running delete on {self.name}')
+
+        res = requests.delete(f'{API}/{self.name}')
+        res.raise_for_status()
+        return 'deleted'
+
+
+def main():
+    """Entrypoint."""
+    parser = argparse.ArgumentParser(description=__doc__)
+
+    parser.add_argument(
+        '-v', '--verbose',
+        help='log debug messages',
+        action='store_const',
+        dest='loglevel',
+        const=logging.DEBUG,
+        default=logging.INFO,
+    )
+
+    parser.add_argument(
+        'action',
+        help='action to perform',
+        choices=['create', 'read', 'update', 'delete'],
+    )
+
+    parser.add_argument(
+        'name',
+        help='name of pipeline',
+    )
+
+    args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel)
+    L.debug(str(args))
+
+    print(getattr(Pipeline(args.name), args.action)())
+
+
+if __name__ == '__main__':
+    main()
