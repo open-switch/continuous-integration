@@ -1,0 +1,97 @@
+name: rootfs
+description: OpenSwitch ONIE Installer
+repository: "https://github.com/open-switch/rootfs"
+skip_queued_branch_builds: true
+skip_queued_branch_builds_filter: "!master"
+provider_settings:
+  build_pull_request_forks: true
+  build_pull_requests: true
+  build_tags: true
+  prefix_pull_request_fork_branch_names: true
+  publish_commit_status: true
+  publish_commit_status_per_step: false
+  pull_request_branch_filter_enabled: false
+  skip_pull_request_builds_for_existing_commits: true
+  trigger_mode: "code"
+steps:
+  - name: ":debian: Jessie"
+    type: script
+    env:
+      DIST: jessie
+    command: |
+      VERSION="$(cat VERSION)"
+      docker-compose run $DIST
+      TARBALL="opx-rootfs_${VERSION}-${DIST}_amd64.tar.gz"
+      sha256sum "$TARBALL" >"${TARBALL}.sha256"
+      buildkite-agent artifact upload "${TARBALL}*"
+  - name: ":debian: Stretch"
+    type: script
+    branch_configuration: "master"
+    env:
+      DIST: stretch
+    command: |
+      if [[ -z "$BUILDKITE_TAG" ]]; then
+        echo Not a tag, skipping...
+        exit
+      fi
+      VERSION="$(cat VERSION)"
+      docker-compose run "$DIST"
+      TARBALL="opx-rootfs_${VERSION}-${DIST}_amd64.tar.gz"
+      sha256sum "$TARBALL" >"${TARBALL}.sha256"
+      buildkite-agent artifact upload "${TARBALL}*"
+  - type: waiter
+  - name: ":docker: publish"
+    type: script
+    branch_configuration: "master"
+    agent_query_rules: [ "queue=deploy" ]
+    concurrency: 1
+    concurrency_group: "docker/import-push"
+    command: |
+      if [[ -z "$BUILDKITE_TAG" ]]; then
+        echo Not a tag, skipping...
+        exit
+      fi
+      VERSION="$(cat VERSION)"
+      DIST=jessie
+      TARBALL="opx-rootfs_${VERSION}-${DIST}_amd64.tar.gz"
+      buildkite-agent artifact download "${TARBALL}*" . {
+        docker import "$TARBALL" "opxhub/rootfs:${VERSION}-${DIST}"
+        docker tag "opxhub/rootfs:${VERSION}-${DIST}" "opxhub/rootfs:$DIST"
+        docker tag "opxhub/rootfs:${VERSION}-${DIST}" "opxhub/rootfs:latest"
+        docker push "opxhub/rootfs:${VERSION}-${DIST}"
+        docker push "opxhub/rootfs:$DIST"
+        docker push "opxhub/rootfs:latest"
+      }
+      DIST=stretch
+      TARBALL="opx-rootfs_${VERSION}-${DIST}_amd64.tar.gz"
+      buildkite-agent artifact download "${TARBALL}*" . && {
+        docker import "$TARBALL" "opxhub/rootfs:${VERSION}-${DIST}"
+        docker tag "opxhub/rootfs:${VERSION}-${DIST}" "opxhub/rootfs:$DIST"
+        docker push "opxhub/rootfs:${VERSION}-${DIST}"
+        docker push "opxhub/rootfs:$DIST"
+      }
+  - name: ":s3: publish"
+    type: script
+    branch_configuration: "master"
+    agent_query_rules: [ "queue=deploy" ]
+    concurrency: 1
+    concurrency_group: "archive.openswitch.net"
+    command: |
+      if [[ -z "$BUILDKITE_TAG" ]]; then
+        echo Not a tag, skipping...
+        exit
+      fi
+      UPLOAD="s3://archive.openswitch.net/rootfs"
+      VERSION="$(cat VERSION)"
+      DIST=jessie
+      TARBALL="opx-rootfs_${VERSION}-${DIST}_amd64.tar.gz"
+      buildkite-agent artifact download "${TARBALL}*" . && {
+        aws s3 cp "$TARBALL" "$UPLOAD/$TARBALL"
+        aws s3 cp "${TARBALL}.sha256" "$UPLOAD/${TARBALL}.sha256"
+      }
+      DIST=stretch
+      TARBALL="opx-rootfs_${VERSION}-${DIST}_amd64.tar.gz"
+      buildkite-agent artifact download "${TARBALL}*" . && {
+        aws s3 cp "$TARBALL" "$UPLOAD/$TARBALL"
+        aws s3 cp "${TARBALL}.sha256" "$UPLOAD/${TARBALL}.sha256"
+      }
