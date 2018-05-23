@@ -102,6 +102,21 @@ class Pipeline:
         res = requests.post(api, json=body)
         return res.status_code == 201
 
+    def delete_webhook(self) -> bool:
+        """Returns True if webhook is deleted successfully."""
+        api = f'https://api.github.com/repos/open-switch/{self.name}/hooks'
+        res = requests.get(api)
+        if res.status_code != 200:
+            L.warning('Could not fetch webhooks. Please delete manually.')
+            return False
+
+        for hook in res.json():
+            if 'webhook.buildkite.com' in hook['config']['url']:
+                hook_id = hook['id']
+                return requests.delete(f'{api}/{hook_id}').status_code == 204
+
+        return False
+
     def create(self) -> str:
         """Creates pipeline if it doesn't already exist.
 
@@ -155,6 +170,10 @@ class Pipeline:
             L.info(f'Running delete on {self.name}')
 
         res = requests.delete(f'{API}/{self.name}')
+
+        if not self.delete_webhook():
+            L.warning('Could not delete webhook. Please delete it manually.')
+
         res.raise_for_status()
         return 'Deleted.'
 
