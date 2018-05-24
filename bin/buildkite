@@ -68,12 +68,52 @@ def fatal(msg: str) -> None:
     sys.exit(1)
 
 
+class Webhook:
+    """Represents a GitHub webhook."""
+
+    def __init__(self, repo: str, events=None) -> None:
+        self.repo = repo
+        self.events = events or ['deployment', 'pull_request', 'push']
+
+    def create(self, url: str) -> bool:
+        """Returns True if webhook is created successfully."""
+        body = {
+            'name': 'web',
+            'active': True,
+            'events': self.events,
+            'config': {
+                'url': url,
+                'content_type': 'json',
+            },
+        }
+        api = f'https://api.github.com/repos/open-switch/{self.repo}/hooks'
+        res = requests.post(api, json=body)
+        return res.status_code == 201
+
+    def delete(self) -> bool:
+        """Returns True if webhook is deleted successfully."""
+        api = f'https://api.github.com/repos/open-switch/{self.repo}/hooks'
+        res = requests.get(api)
+        if res.status_code != 200:
+            L.warning('Could not fetch webhooks. Please delete manually.')
+            return False
+
+        for hook in res.json():
+            if 'webhook.buildkite.com' in hook['config'].get('url', ''):
+                hook_id = hook['id']
+                return requests.delete(f'{api}/{hook_id}').status_code == 204
+
+        return False
+
+
 class Pipeline:
     """Represents a Buildkite pipeline."""
+
     def __init__(self, name: str) -> None:
         self.name = name
         self.slug = name.replace('_', '-')
         self.file = Path(f'buildkite/{name}.yaml')
+        self.webhook = Webhook(name)
 
         if not self.file.exists():
             if name in DEBIAN_REPOS:
@@ -85,38 +125,8 @@ class Pipeline:
 
     def exists(self) -> bool:
         """Returns True if Buildkite says the pipeline exists."""
-        L.debug(f'checking if {self.name} pipeline exists')
+        L.info(f'checking if {self.name} pipeline exists')
         return requests.get(f'{API}/{self.slug}').status_code == 200
-
-    def create_webhook(self, url: str) -> bool:
-        """Returns True if webhook is created successfully."""
-        body = {
-            'name': 'web',
-            'active': True,
-            'events': ['deployment', 'pull_request', 'push'],
-            'config': {
-                'url': url,
-                'content_type': 'json',
-            },
-        }
-        api = f'https://api.github.com/repos/open-switch/{self.name}/hooks'
-        res = requests.post(api, json=body)
-        return res.status_code == 201
-
-    def delete_webhook(self) -> bool:
-        """Returns True if webhook is deleted successfully."""
-        api = f'https://api.github.com/repos/open-switch/{self.name}/hooks'
-        res = requests.get(api)
-        if res.status_code != 200:
-            L.warning('Could not fetch webhooks. Please delete manually.')
-            return False
-
-        for hook in res.json():
-            if 'webhook.buildkite.com' in hook['config']['url']:
-                hook_id = hook['id']
-                return requests.delete(f'{api}/{hook_id}').status_code == 204
-
-        return False
 
     def create(self) -> str:
         """Creates pipeline if it doesn't already exist.
@@ -132,7 +142,7 @@ class Pipeline:
         res = requests.post(f'{API}', json=pipeline)
         res.raise_for_status()
 
-        if not self.create_webhook(res.json()['provider']['webhook_url']):
+        if not self.webhook.create(res.json()['provider']['webhook_url']):
             L.warning('Could not create webhook. Please create it manually.')
 
         return 'Created!'
@@ -172,7 +182,7 @@ class Pipeline:
 
         res = requests.delete(f'{API}/{self.slug}')
 
-        if not self.delete_webhook():
+        if not self.webhook.delete():
             L.warning('Could not delete webhook. Please delete it manually.')
 
         res.raise_for_status()
@@ -189,7 +199,7 @@ def main():
         action='store_const',
         dest='loglevel',
         const=logging.DEBUG,
-        default=logging.INFO,
+        default=logging.WARNING,
     )
 
     parser.add_argument(
@@ -207,7 +217,7 @@ def main():
     logging.basicConfig(level=args.loglevel)
     L.debug(str(args))
 
-    print(getattr(Pipeline(args.name), args.action)())
+    L.info(getattr(Pipeline(args.name), args.action)())
 
 
 if __name__ == '__main__':
