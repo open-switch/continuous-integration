@@ -17,15 +17,14 @@ provider_settings:
   skip_pull_request_builds_for_existing_commits: true
   trigger_mode: "code"
 steps:
-  - name: ":python: Coverage"
+  - name: ":python: Format and Test"
     type: script
     command: |
       pipenv install --deploy --dev
+      pipenv run pip install black
+      # Format
+      DIFF="$(pipenv run black . --diff --quiet)"
+      [[ -n "$DIFF"  ]] && echo "Black failed.\n$DIFF" && exit 1
+      # Test
       pipenv run pytest --cov=opx/ tests/ --cov-report=xml --cov-report=term
       bash <(curl -s https://codecov.io/bash)
-  - type: waiter
-  - name: ":llama: Lint"
-    type: script
-    command: |
-      pipenv install --deploy --dev
-      pipenv run pylama opx --skip '*/__init__.py'
