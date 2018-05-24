@@ -72,6 +72,7 @@ class Pipeline:
     """Represents a Buildkite pipeline."""
     def __init__(self, name: str) -> None:
         self.name = name
+        self.slug = name.replace('_', '-')
         self.file = Path(f'buildkite/{name}.yaml')
 
         if not self.file.exists():
@@ -85,7 +86,7 @@ class Pipeline:
     def exists(self) -> bool:
         """Returns True if Buildkite says the pipeline exists."""
         L.debug(f'checking if {self.name} pipeline exists')
-        return requests.get(f'{API}/{self.name}').status_code == 200
+        return requests.get(f'{API}/{self.slug}').status_code == 200
 
     def create_webhook(self, url: str) -> bool:
         """Returns True if webhook is created successfully."""
@@ -143,7 +144,7 @@ class Pipeline:
         else:
             L.info(f'Running read on {self.name}')
 
-        res = requests.get(f'{API}/{self.name}')
+        res = requests.get(f'{API}/{self.slug}')
         res.raise_for_status()
         return json.dumps(res.json(), indent=4, sort_keys=True)
 
@@ -158,7 +159,7 @@ class Pipeline:
             L.info(f'Running update on {self.name} with {self.file}')
 
         pipeline = yaml.safe_load(self.file.open().read())
-        res = requests.patch(f'{API}/{self.name}', json=pipeline)
+        res = requests.patch(f'{API}/{self.slug}', json=pipeline)
         res.raise_for_status()
         return 'Updated!'
 
@@ -169,7 +170,7 @@ class Pipeline:
         else:
             L.info(f'Running delete on {self.name}')
 
-        res = requests.delete(f'{API}/{self.name}')
+        res = requests.delete(f'{API}/{self.slug}')
 
         if not self.delete_webhook():
             L.warning('Could not delete webhook. Please delete it manually.')
