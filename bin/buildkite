@@ -17,6 +17,7 @@ L = logging.getLogger('Buildkite')
 L.addHandler(logging.NullHandler())
 
 API = 'https://api.buildkite.com/v2/organizations/opx/pipelines'
+WEBHOOK_EVENTS = ('deployment', 'pull_request', 'push')
 
 DEBIAN_REPOS = [
     'SAI',
@@ -71,9 +72,9 @@ def fatal(msg: str) -> None:
 class Webhook:
     """Represents a GitHub webhook."""
 
-    def __init__(self, repo: str, events=None) -> None:
+    def __init__(self, repo: str, events=WEBHOOK_EVENTS) -> None:
         self.repo = repo
-        self.events = events or ['deployment', 'pull_request', 'push']
+        self.events = events
 
     def create(self, url: str) -> bool:
         """Returns True if webhook is created successfully."""
@@ -82,7 +83,7 @@ class Webhook:
             'active': True,
             'events': self.events,
             'config': {
-                'url': url,
+                'url': list(url),
                 'content_type': 'json',
             },
         }
