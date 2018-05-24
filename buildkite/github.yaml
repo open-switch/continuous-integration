@@ -13,8 +13,6 @@ provider_settings:
   pull_request_branch_filter_enabled: false
   skip_pull_request_builds_for_existing_commits: true
   trigger_mode: "code"
-env:
-  TF: "'docker run -it -w /tf -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e TF_VAR_github_access_token'"
 steps:
   - name: ":terraform: plan"
     type: script
@@ -23,8 +21,8 @@ steps:
     concurrency: 1
     concurrency_group: "terraform/github"
     command: |
-      $TF -v $(pwd):/tf hashicorp/terraform init -input=false
-      $TF -v $(pwd):/tf hashicorp/terraform plan -input=false -out=tfplan
+      terraform init -input=false
+      terraform plan -input=false -out=tfplan
   - type: waiter
   - name: ":terraform: apply"
     type: script
@@ -34,5 +32,5 @@ steps:
     concurrency_group: "terraform/github"
     command: |
       buildkite-agent artifact download tfplan .
-      $TF -v $(pwd):/tf hashicorp/terraform init -input=false
-      $TF -v $(pwd):/tf hashicorp/terraform apply -input=false tfplan
+      terraform init -input=false
+      terraform apply -input=false tfplan
