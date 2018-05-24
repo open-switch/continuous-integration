@@ -1,6 +1,9 @@
 name: rootfs
 description: OpenSwitch ONIE Installer
 repository: "https://github.com/open-switch/rootfs"
+team_uuids:
+  - "e22748d1-7895-4621-96b3-a61b05da4453"
+  - "e3092df6-84d1-4756-b720-41f5f5df0da5"
 skip_queued_branch_builds: true
 skip_queued_branch_builds_filter: "!master"
 provider_settings:
