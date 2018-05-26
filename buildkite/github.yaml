@@ -24,7 +24,9 @@ steps:
     concurrency: 1
     concurrency_group: "terraform/github"
     command: |
+      echo "--- Running terraform init"
       terraform init -input=false
+      echo "+++ Running terraform plan"
       terraform plan -input=false -out=tfplan
   - type: waiter
   - name: ":terraform: apply"
@@ -34,6 +36,8 @@ steps:
     concurrency: 1
     concurrency_group: "terraform/github"
     command: |
+      echo "--- Running terraform init"
       buildkite-agent artifact download tfplan .
       terraform init -input=false
+      echo "+++ Running terraform apply"
       terraform apply -input=false tfplan
