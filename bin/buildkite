@@ -13,53 +13,54 @@ from pathlib import Path
 import requests
 import yaml
 
-L = logging.getLogger('Buildkite')
+from jinja2 import Template
+
+L = logging.getLogger("Buildkite")
 L.addHandler(logging.NullHandler())
 
-API = 'https://api.buildkite.com/v2/organizations/opx/pipelines'
-WEBHOOK_EVENTS = ('deployment', 'pull_request', 'push')
+API = "https://api.buildkite.com/v2/organizations/opx/pipelines"
+WEBHOOK_EVENTS = ("deployment", "pull_request", "push")
 
 DEBIAN_REPOS = [
-    'SAI',
-    'opx-alarm',
-    'opx-base-model',
-    'opx-common-utils',
-    'opx-cps',
-    'opx-db-sql',
-    'opx-logging',
-    'opx-nas-acl',
-    'opx-nas-common',
-    'opx-nas-daemon',
-    'opx-nas-interface',
-    'opx-nas-l2',
-    'opx-nas-l3',
-    'opx-nas-linux',
-    'opx-nas-ndi',
-    'opx-nas-ndi-api',
-    'opx-nas-qos',
-    'opx-northbound',
-    'opx-pas',
-    'opx-platform-config',
-    'opx-sai-vm',
-    'opx-sdi-sys',
-    'opx-snmp',
-    'opx-tmpctl',
-    'opx-tools',
+    "SAI",
+    "opx-alarm",
+    "opx-base-model",
+    "opx-common-utils",
+    "opx-cps",
+    "opx-db-sql",
+    "opx-logging",
+    "opx-nas-acl",
+    "opx-nas-common",
+    "opx-nas-daemon",
+    "opx-nas-interface",
+    "opx-nas-l2",
+    "opx-nas-l3",
+    "opx-nas-linux",
+    "opx-nas-ndi",
+    "opx-nas-ndi-api",
+    "opx-nas-qos",
+    "opx-pas",
+    "opx-platform-config",
+    "opx-sai-vm",
+    "opx-sdi-sys",
+    "opx-snmp",
+    "opx-tmpctl",
+    "opx-tools",
 ]
 
 
 ALL_REPOS = DEBIAN_REPOS + [
-    'continuous-integration',
-    'github',
-    'opx-build',
-    'opx-core',
-    'opx-docs',
-    'opx-manifest',
-    'opx-northbound',
-    'opx-onie-installer',
-    'opx-test',
-    'rootfs',
-    'tools_opx-py',
+    "continuous-integration",
+    "github",
+    "opx-build",
+    "opx-core",
+    "opx-docs",
+    "opx-manifest",
+    "opx-northbound",
+    "opx-onie-installer",
+    "opx-test",
+    "rootfs",
+    "tools_opx-py",
 ]
 
 
@@ -69,65 +70,37 @@ def fatal(msg: str) -> None:
     sys.exit(1)
 
 
-class Webhook:
-    """Represents a GitHub webhook."""
-
-    def __init__(self, repo: str, events=WEBHOOK_EVENTS) -> None:
-        self.repo = repo
-        self.events = events
-
-    def create(self, url: str) -> bool:
-        """Returns True if webhook is created successfully."""
-        body = {
-            'name': 'web',
-            'active': True,
-            'events': self.events,
-            'config': {
-                'url': list(url),
-                'content_type': 'json',
-            },
-        }
-        api = f'https://api.github.com/repos/open-switch/{self.repo}/hooks'
-        res = requests.post(api, json=body)
-        return res.status_code == 201
-
-    def delete(self) -> bool:
-        """Returns True if webhook is deleted successfully."""
-        api = f'https://api.github.com/repos/open-switch/{self.repo}/hooks'
-        res = requests.get(api)
-        if res.status_code != 200:
-            L.warning('Could not fetch webhooks. Please delete manually.')
-            return False
-
-        for hook in res.json():
-            if 'webhook.buildkite.com' in hook['config'].get('url', ''):
-                hook_id = hook['id']
-                return requests.delete(f'{api}/{hook_id}').status_code == 204
-
-        return False
-
-
 class Pipeline:
     """Represents a Buildkite pipeline."""
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, webhook: bool) -> None:
         self.name = name
-        self.slug = name.replace('_', '-')
-        self.file = Path(f'buildkite/{name}.yaml')
-        self.webhook = Webhook(name)
+        self.slug = name.replace("_", "-").lower()
+        if webhook:
+            self.webhook = Webhook(name)
+        else:
+            self.webhook = None
 
-        if not self.file.exists():
+        pipeline_file = Path(f"buildkite/{name}.yaml")
+        if pipeline_file.exists():
+            self.pipeline = yaml.safe_load(pipeline_file.open().read())
+        else:
             if name in DEBIAN_REPOS:
-                self.file = Path('buildkite/opx-debian.yaml')
+                pipeline_file = Path("buildkite/opx-debian.yaml.jinja2")
+                self.pipeline = yaml.safe_load(
+                    Template(pipeline_file.open().read()).render(
+                        name=name, description="OpenSwitch Debian package"
+                    )
+                )
             else:
-                raise FileNotFoundError(errno.ENOENT,
-                                        os.strerror(errno.ENOENT),
-                                        str(self.file))
+                raise FileNotFoundError(
+                    errno.ENOENT, os.strerror(errno.ENOENT), str(pipeline_file)
+                )
 
     def exists(self) -> bool:
         """Returns True if Buildkite says the pipeline exists."""
-        L.info(f'checking if {self.name} pipeline exists')
-        return requests.get(f'{API}/{self.slug}').status_code == 200
+        L.info(f"checking if {self.name} pipeline exists")
+        return requests.get(f"{API}/{self.slug}").status_code == 200
 
     def create(self) -> str:
         """Creates pipeline if it doesn't already exist.
@@ -135,27 +108,27 @@ class Pipeline:
         Pipeline configuration is converted to json and pushed.
         """
         if self.exists():
-            fatal(f'Pipeline {self.name} already exists')
+            fatal(f"Pipeline {self.name} already exists")
         else:
-            L.info(f'Running create on {self.name} with {self.file}')
+            L.info(f"Creating pipeline for {self.name}")
 
-        pipeline = yaml.safe_load(self.file.open().read())
-        res = requests.post(f'{API}', json=pipeline)
+        res = requests.post(f"{API}", json=self.pipeline)
         res.raise_for_status()
 
-        if not self.webhook.create(res.json()['provider']['webhook_url']):
-            L.warning('Could not create webhook. Please create it manually.')
+        if self.webhook:
+            if not self.webhook.create(res.json()["provider"]["webhook_url"]):
+                L.warning("Could not create webhook. Please create it manually.")
 
-        return 'Created!'
+        return "Created!"
 
     def read(self) -> str:
         """Retrieves current pipeline configuration from Buildkite."""
         if not self.exists():
-            fatal(f'Pipeline {self.name} does not exist')
+            fatal(f"Pipeline {self.name} does not exist")
         else:
-            L.info(f'Running read on {self.name}')
+            L.info(f"Running read on {self.name}")
 
-        res = requests.get(f'{API}/{self.slug}')
+        res = requests.get(f"{API}/{self.slug}")
         res.raise_for_status()
         return json.dumps(res.json(), indent=4, sort_keys=True)
 
@@ -165,29 +138,69 @@ class Pipeline:
         Pipeline configuration is converted to json and pushed.
         """
         if not self.exists():
-            fatal(f'Pipeline {self.name} does not exist')
+            fatal(f"Pipeline {self.name} does not exist")
         else:
-            L.info(f'Running update on {self.name} with {self.file}')
+            L.info(f"Updating {self.name} pipeline")
 
-        pipeline = yaml.safe_load(self.file.open().read())
-        res = requests.patch(f'{API}/{self.slug}', json=pipeline)
+        res = requests.patch(f"{API}/{self.slug}", json=self.pipeline)
         res.raise_for_status()
-        return 'Updated!'
+        return "Updated!"
 
     def delete(self) -> str:
         """Deletes pipeline if it already exists."""
         if not self.exists():
-            fatal(f'Pipeline {self.name} does not exist')
+            fatal(f"Pipeline {self.name} does not exist")
         else:
-            L.info(f'Running delete on {self.name}')
+            L.info(f"Running delete on {self.name}")
 
-        res = requests.delete(f'{API}/{self.slug}')
+        res = requests.delete(f"{API}/{self.slug}")
 
-        if not self.webhook.delete():
-            L.warning('Could not delete webhook. Please delete it manually.')
+        if self.webhook:
+            if not self.webhook.delete():
+                L.warning("Could not delete webhook. Please delete it manually.")
 
         res.raise_for_status()
-        return 'Deleted.'
+        return "Deleted."
+
+
+class Webhook:
+    """Represents a GitHub webhook."""
+
+    def __init__(self, repo: str, events=WEBHOOK_EVENTS) -> None:
+        self.repo = repo
+        self.events = events
+        self.url = ""
+
+    def create(self, url: str) -> bool:
+        """Returns True if webhook is created successfully."""
+        self.url = url
+        body = {
+            "name": "web",
+            "active": True,
+            "events": self.events,
+            "config": {"url": url, "content_type": "json"},
+        }
+        api = f"https://api.github.com/repos/open-switch/{self.repo}/hooks"
+        res = requests.post(api, json=body)
+        L.debug(f"webhook.create: {res.json()}")
+        return res.status_code == 201
+
+    def delete(self) -> bool:
+        """Returns True if webhook is deleted successfully."""
+        self.url = ""
+
+        api = f"https://api.github.com/repos/open-switch/{self.repo}/hooks"
+        res = requests.get(api)
+        if res.status_code != 200:
+            L.warning("Could not fetch webhooks. Please delete manually.")
+            return False
+
+        for hook in res.json():
+            if "webhook.buildkite.com" in hook["config"].get("url", ""):
+                hook_id = hook["id"]
+                return requests.delete(f"{api}/{hook_id}").status_code == 204
+
+        return False
 
 
 def main():
@@ -195,31 +208,41 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
-        '-v', '--verbose',
-        help='log debug messages',
-        action='store_const',
-        dest='loglevel',
+        "-v",
+        "--verbose",
+        help="log debug messages",
+        action="store_const",
+        dest="loglevel",
         const=logging.DEBUG,
         default=logging.WARNING,
     )
 
     parser.add_argument(
-        'action',
-        help='action to perform',
-        choices=['create', 'read', 'update', 'delete'],
+        "action",
+        help="action to perform",
+        choices=["create", "read", "update", "delete"],
     )
 
+    parser.add_argument("name", help="name of pipeline")
+
     parser.add_argument(
-        'name',
-        help='name of pipeline',
+        "--no-webhook", action="store_false", dest="webhook", help="name of pipeline"
     )
 
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
     L.debug(str(args))
 
-    L.info(getattr(Pipeline(args.name), args.action)())
+    if args.name == "all-debian":
+        for repo in DEBIAN_REPOS:
+            print(f"Running {args.action} on {repo}")
+            L.info(getattr(Pipeline(repo, args.webhook), args.action)())
+    elif args.name == "all":
+        for repo in ALL_REPOS:
+            L.info(getattr(Pipeline(repo, args.webhook), args.action)())
+    else:
+        L.info(getattr(Pipeline(args.name, args.webhook), args.action)())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
