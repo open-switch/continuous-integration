@@ -1,6 +1,6 @@
-name: {{ name }}
-description: {{ description }}
-repository: "https://github.com/open-switch/{{ name }}"
+name: opx-core
+description: OPX Metapackage
+repository: "https://github.com/open-switch/opx-core"
 team_uuids:
   - "e22748d1-7895-4621-96b3-a61b05da4453"
   - "e3092df6-84d1-4756-b720-41f5f5df0da5"
@@ -24,18 +24,20 @@ steps:
       OPX_RELEASE: unstable
     command: |
       if [[ -n "$BUILDKITE_TAG" ]]; then
-        VERSION="$(head -1 debian/changelog | awk -F'[()]' '{print $2}')"
+        VERSION="$(grep ^Version: DEBIAN/control | awk -F': ' '{print $2}')"
         OPX_RELEASE=testing
       else
         echo "--- Bumping version with git sha and date"
-        v="$(head -1 debian/changelog | awk -F'[()]' '{print $2}')"
+        v="$(grep ^Version: DEBIAN/control | awk -F': ' '{print $2}')"
         if [[ $v == *"+"* ]]; then s="."; else s="+"; fi
         VERSION="${v}${s}git$(date +%Y%m%d).$(git rev-parse --short HEAD)"
         echo "Bumping from $v to $VERSION"
-        sed -i "s/$v/$VERSION/g" debian/changelog
+        sed -i "s/$v/$VERSION/g" DEBIAN/control
       fi
       cd ..
       echo "+++ Building packages"
+      OUTPUT="pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG"
+      mkdir -p "$OUTPUT"
       docker run \
         --rm \
         --privileged \
@@ -44,9 +46,11 @@ steps:
         -v ${PWD}:/mnt \
         -e DIST \
         -e OPX_RELEASE \
-        opxhub/build sh -l -c "opx_build $BUILDKITE_PIPELINE_SLUG"
+        opxhub/build sh -l -c "dpkg-deb -b $BUILDKITE_PIPELINE_SLUG $OUTPUT"
       echo "--- Uploading artifacts"
-      buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*$(date +%Y%m%d)*"
+      buildkite-agent artifact upload "$OUTPUT/*"
+  - type: waiter
+    continue_on_failure: true
   - name: ":debian: Stretch"
     type: script
     env:
@@ -54,18 +58,20 @@ steps:
       OPX_RELEASE: unstable
     command: |
       if [[ -n "$BUILDKITE_TAG" ]]; then
-        VERSION="$(head -1 debian/changelog | awk -F'[()]' '{print $2}')"
+        VERSION="$(grep ^Version: DEBIAN/control | awk -F': ' '{print $2}')"
         OPX_RELEASE=testing
       else
         echo "--- Bumping version with git sha and date"
-        v="$(head -1 debian/changelog | awk -F'[()]' '{print $2}')"
+        v="$(grep ^Version: DEBIAN/control | awk -F': ' '{print $2}')"
         if [[ $v == *"+"* ]]; then s="."; else s="+"; fi
         VERSION="${v}${s}git$(date +%Y%m%d).$(git rev-parse --short HEAD)"
         echo "Bumping from $v to $VERSION"
-        sed -i "s/$v/$VERSION/g" debian/changelog
+        sed -i "s/$v/$VERSION/g" DEBIAN/control
       fi
       cd ..
       echo "+++ Building packages"
+      OUTPUT="pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG"
+      mkdir -p "$OUTPUT"
       docker run \
         --rm \
         --privileged \
@@ -74,14 +80,14 @@ steps:
         -v ${PWD}:/mnt \
         -e DIST \
         -e OPX_RELEASE \
-        opxhub/build sh -l -c "opx_build $BUILDKITE_PIPELINE_SLUG"
+        opxhub/build sh -l -c "dpkg-deb -b $BUILDKITE_PIPELINE_SLUG $OUTPUT"
       echo "--- Uploading artifacts"
-      buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*$(date +%Y%m%d)*"
+      buildkite-agent artifact upload "$OUTPUT/*"
   - type: waiter
     continue_on_failure: true
   - name: ":debian: publish"
     type: script
-    branch_configuration: "master dell*"
+    branch_configuration: "master"
     agent_query_rules: [ "queue=aptly" ]
     concurrency: 1
     concurrency_group: "deb.openswitch.net"
@@ -94,26 +100,19 @@ steps:
       cd ..
       echo "+++ Publishing Jessie packages to opx-$OPX_RELEASE"
       DIST=jessie
-      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
-      aptly repo include -keyring=AD5073F1 -repo="opx-$OPX_RELEASE" -accept-unsigned \
-        pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
+      OUTPUT="pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG"
+      buildkite-agent artifact download "$OUTPUT/*" .
+      aptly repo add -remove-files "opx-$OPX_RELEASE" \
+        "$OUTPUT"
       aptly publish update $OPX_RELEASE s3:opx:
       aptly publish update $OPX_RELEASE s3:opx:$DIST
       echo "--- Publishing Stretch packages to opx-${OPX_RELEASE}-stretch"
       DIST=stretch
-      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
+      OUTPUT="pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG"
+      buildkite-agent artifact download "$OUTPUT/*" .
       if [[ -n "$BUILDKITE_TAG" ]]; then
-        aptly repo include -keyring=AD5073F1 -repo="opx-stretch" -accept-unsigned \
-          pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
+        aptly repo add -remove-files "opx-${DIST}" "$OUTPUT"
       else
-        aptly repo include -keyring=AD5073F1 -repo="opx-${OPX_RELEASE}-stretch" -accept-unsigned \
-          pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
+        aptly repo add -remove-files "opx-${OPX_RELEASE}-${DIST}" "$OUTPUT"
       fi
       aptly publish update $OPX_RELEASE s3:opx:$DIST
-      # update graph
-      echo "--- Updating graph"
-      aptly graph -format=svg -layout=vertical -output=apt.svg
-      aws s3 cp apt.svg s3://deb.openswitch.net/ --acl public-read
-      echo "http://deb.openswitch.net/apt.svg"
-
-# vim: ft=yaml
