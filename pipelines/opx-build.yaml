@@ -1,122 +1,29 @@
-groups: #######################################################################
-
-- name: commit
-  jobs: [jessie, stretch]
-
-- name: review
-  jobs: [check]
-
-resource_types: ###############################################################
-
-- name: gerrit
-  type: docker-image
-  source:
-    repository: us.gcr.io/concourse-resources/gerrit-resource
-
-resources: ####################################################################
-
-## Source repository ##
-
-- name: opx-build
-  type: git
-  source:
-    uri: https://github.com/open-switch/opx-build
-    branch: master
-
-## Docker images ##
-
-- name: docker-opx-build
-  type: docker-image
-  source:
-    repository: opxhub/build
-    username: ((docker.username))
-    password: ((docker.password))
-
-## CI configuration ##
-
-- name: concourse
-  type: git
-  source:
-    uri: https://github.com/open-switch/continuous-integration
-    branch: master
-
-- name: review-opx-build
-  type: gerrit
-  source:
-    url: https://review.openswitch.net
-    username: ((gerrit.username))
-    password: ((gerrit.password))
-    digest_auth: true
-    query: "status:open project:opx/opx-build"
-
-jobs: #########################################################################
-
-- name: jessie
-  public: true
-  plan:
-  - aggregate:
-    - get: opx-build
-      trigger: true
-    - get: concourse
-  - task: build
-    privileged: true
-    file: concourse/tasks/opx-build-docker/task.yaml
-    params:
-      DIST: jessie
-  - put: docker-opx-build
-    params:
-      load_file: opx-build-artifacts/image.tar
-      load_repository: opxhub/build
-      load_tag: jessie
-      tag: opx-build-artifacts/version
-      additional_tags: opx-build-artifacts/tags
-      tag_as_latest: true
-
-- name: stretch
-  public: true
-  plan:
-  - aggregate:
-    - get: opx-build
-      trigger: true
-    - get: concourse
-  - task: build
-    privileged: true
-    file: concourse/tasks/opx-build-docker/task.yaml
-    params:
-      DIST: stretch
-  - put: docker-opx-build
-    params:
-      load_file: opx-build-artifacts/image.tar
-      load_repository: opxhub/build
-      load_tag: stretch
-      tag: opx-build-artifacts/version
-      additional_tags: opx-build-artifacts/tags
-
-- name: check
-  public: true
-  plan:
-  - aggregate:
-    - get: review-opx-build
-      trigger: true
-      version: every
-    - get: concourse
-  - task: build
-    attempts: 3
-    privileged: true
-    file: concourse/tasks/opx-build-docker/task.yaml
-    input_mapping:
-      opx-build: review-opx-build
-    params:
-      DIST: jessie
-    on_success:
-      put: review-opx-build
-      params:
-        repository: review-opx-build
-        message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} succeeded!"
-        labels: {Verified: 2}
-    on_failure:
-      put: review-opx-build
-      params:
-        repository: review-opx-build
-        message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} failed."
-        labels: {Verified: -1}
+name: opx-build
+description: OpenSwitch build tools and environment
+repository: "https://github.com/open-switch/opx-build"
+team_uuids:
+  - "e22748d1-7895-4621-96b3-a61b05da4453"
+  - "e3092df6-84d1-4756-b720-41f5f5df0da5"
+skip_queued_branch_builds: true
+skip_queued_branch_builds_filter: "!master"
+provider_settings:
+  build_pull_request_forks: true
+  build_pull_requests: true
+  build_tags: false
+  prefix_pull_request_fork_branch_names: true
+  publish_commit_status: true
+  publish_commit_status_per_step: false
+  pull_request_branch_filter_enabled: false
+  skip_pull_request_builds_for_existing_commits: true
+  trigger_mode: "code"
+steps:
+  - name: ":docker: opxhub/build"
+    type: script
+    command: ./docker_build.sh
+  - type: waiter
+  - name: ":docker: push"
+    type: script
+    branch_configuration: "master"
+    command: |
+      docker push opxhub/build:$(git log -1 --pretty=%h)
+      docker push opxhub/build:latest

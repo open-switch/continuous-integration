@@ -1,203 +1,100 @@
-groups: #######################################################################
-
-- name: tag
-  jobs:
-  - release-jessie
-  - release-jessie-docker
-  - release-stretch
-  - release-stretch-docker
-
-- name: review
-  jobs: [pull-request-jessie, pull-request-stretch]
-
-resource_types: ###############################################################
-
-- name: pull-request
-  type: docker-image
-  source:
-    repository: jtarchie/pr
-
-resources: ####################################################################
-
-## Source repository ##
-
-- name: rootfs
-  type: git
-  source:
-    uri: https://github.com/open-switch/rootfs
-    branch: master
-    tag_filter: "[[:digit:]]*.[[:digit:]]*.[[:digit:]]*"
-
-- name: rootfs-pr
-  type: pull-request
-  source:
-    access_token: ((github-pr))
-    repo: open-switch/rootfs
-
-## CI configuration ##
-
-- name: concourse
-  type: git
-  source:
-    uri: https://github.com/open-switch/continuous-integration
-    branch: master
-
-## Artifacts ##
-
-- name: jessie-rootfs-tarball
-  type: s3
-  source:
-    bucket: archive.openswitch.net
-    regexp: "rootfs/opx-rootfs_(.*-jessie)_amd64.tar.gz"
-    region_name: us-west-2
-    access_key_id: ((aws-s3.access-key))
-    secret_access_key: ((aws-s3.secret-key))
-
-- name: stretch-rootfs-tarball
-  type: s3
-  source:
-    bucket: archive.openswitch.net
-    regexp: "rootfs/opx-rootfs_(.*-stretch)_amd64.tar.gz"
-    region_name: us-west-2
-    access_key_id: ((aws-s3.access-key))
-    secret_access_key: ((aws-s3.secret-key))
-
-- name: rootfs-image
-  type: docker-image
-  source:
-    repository: opxhub/rootfs
-    username: ((docker.username))
-    password: ((docker.password))
-
-jobs: #########################################################################
-
-- name: release-jessie
-  public: true
-  plan:
-  - aggregate:
-    - get: rootfs
-      trigger: true
-    - get: concourse
-  - task: build
-    attempts: 3
-    privileged: true
-    file: concourse/tasks/rootfs/task.yaml
-    params:
+name: rootfs
+description: OpenSwitch ONIE Installer
+repository: "https://github.com/open-switch/rootfs"
+team_uuids:
+  - "e22748d1-7895-4621-96b3-a61b05da4453"
+  - "e3092df6-84d1-4756-b720-41f5f5df0da5"
+skip_queued_branch_builds: true
+skip_queued_branch_builds_filter: "!master"
+provider_settings:
+  build_pull_request_forks: true
+  build_pull_requests: true
+  build_tags: true
+  prefix_pull_request_fork_branch_names: true
+  publish_commit_status: true
+  publish_commit_status_per_step: false
+  pull_request_branch_filter_enabled: false
+  skip_pull_request_builds_for_existing_commits: true
+  trigger_mode: "code"
+steps:
+  - name: ":debian: Jessie"
+    type: script
+    env:
       DIST: jessie
-  - put: jessie-rootfs-tarball
-    params:
-      file: rootfs-artifacts/opx-rootfs_*_amd64.tar.gz
-      acl: public-read
-
-- name: release-stretch
-  public: true
-  plan:
-  - aggregate:
-    - get: rootfs
-      trigger: true
-    - get: concourse
-  - task: build
-    attempts: 3
-    privileged: true
-    file: concourse/tasks/rootfs/task.yaml
-    params:
+    command: |
+      VERSION="$(cat VERSION)"
+      docker-compose run $DIST
+      TARBALL="opx-rootfs_${VERSION}-${DIST}_amd64.tar.gz"
+      sha256sum "$TARBALL" >"${TARBALL}.sha256"
+      buildkite-agent artifact upload "${TARBALL}*"
+  - name: ":debian: Stretch"
+    type: script
+    branch_configuration: "master"
+    env:
       DIST: stretch
-  - put: stretch-rootfs-tarball
-    params:
-      file: rootfs-artifacts/opx-rootfs_*_amd64.tar.gz
-      acl: public-read
-
-- name: release-jessie-docker
-  public: true
-  plan:
-  - aggregate:
-    - get: jessie-rootfs-tarball
-      trigger: true
-      passed: [release-jessie]
-    - get: rootfs
-      passed: [release-jessie]
-    - get: concourse
-  - task: rootfs-image-prep
-    file: concourse/tasks/rootfs-image-prep/task.yaml
-    params:
-      DIST: jessie
-    input_mapping:
-      rootfs-tarball: jessie-rootfs-tarball
-  - put: rootfs-image
-    params:
-      import_file: rootfs-artifacts/rootfs.tar.gz
-      tag: rootfs-artifacts/version
-      additional_tags: rootfs-artifacts/tags
-      tag_as_latest: true
-
-- name: release-stretch-docker
-  public: true
-  plan:
-  - aggregate:
-    - get: stretch-rootfs-tarball
-      trigger: true
-      passed: [release-stretch]
-    - get: rootfs
-      passed: [release-stretch]
-    - get: concourse
-  - task: rootfs-image-prep
-    file: concourse/tasks/rootfs-image-prep/task.yaml
-    params:
-      DIST: stretch
-    input_mapping:
-      rootfs-tarball: stretch-rootfs-tarball
-  - put: rootfs-image
-    params:
-      import_file: rootfs-artifacts/rootfs.tar.gz
-      tag: rootfs-artifacts/version
-      additional_tags: rootfs-artifacts/tags
-
-- name: pull-request-jessie
-  public: true
-  plan:
-  - aggregate:
-    - get: rootfs-pr
-      trigger: true
-      version: every
-    - get: concourse
-  - put: rootfs-pr
-    params: {path: rootfs-pr, status: pending, context: jessie}
-  - task: check-jessie
-    attempts: 3
-    privileged: true
-    file: concourse/tasks/rootfs/task.yaml
-    params:
-      DIST: jessie
-    input_mapping:
-      rootfs: rootfs-pr
-    on_success:
-      put: rootfs-pr
-      params: {path: rootfs-pr, status: success, context: jessie}
-    on_failure:
-      put: rootfs-pr
-      params: {path: rootfs-pr, status: failure, context: jessie}
-
-- name: pull-request-stretch
-  public: true
-  plan:
-  - aggregate:
-    - get: rootfs-pr
-      trigger: true
-      version: every
-    - get: concourse
-  - put: rootfs-pr
-    params: {path: rootfs-pr, status: pending, context: stretch}
-  - task: check-stretch
-    attempts: 3
-    privileged: true
-    file: concourse/tasks/rootfs/task.yaml
-    params:
-      DIST: stretch
-    input_mapping:
-      rootfs: rootfs-pr
-    on_success:
-      put: rootfs-pr
-      params: {path: rootfs-pr, status: success, context: stretch}
-    on_failure:
-      put: rootfs-pr
-      params: {path: rootfs-pr, status: failure, context: stretch}
+    command: |
+      if [[ -z "$BUILDKITE_TAG" ]]; then
+        echo Not a tag, skipping...
+        exit
+      fi
+      VERSION="$(cat VERSION)"
+      docker-compose run "$DIST"
+      TARBALL="opx-rootfs_${VERSION}-${DIST}_amd64.tar.gz"
+      sha256sum "$TARBALL" >"${TARBALL}.sha256"
+      buildkite-agent artifact upload "${TARBALL}*"
+  - type: waiter
+  - name: ":docker: publish"
+    type: script
+    branch_configuration: "master"
+    agent_query_rules: [ "queue=deploy" ]
+    concurrency: 1
+    concurrency_group: "docker/import-push"
+    command: |
+      if [[ -z "$BUILDKITE_TAG" ]]; then
+        echo Not a tag, skipping...
+        exit
+      fi
+      VERSION="$(cat VERSION)"
+      DIST=jessie
+      TARBALL="opx-rootfs_${VERSION}-${DIST}_amd64.tar.gz"
+      buildkite-agent artifact download "${TARBALL}*" . {
+        docker import "$TARBALL" "opxhub/rootfs:${VERSION}-${DIST}"
+        docker tag "opxhub/rootfs:${VERSION}-${DIST}" "opxhub/rootfs:$DIST"
+        docker tag "opxhub/rootfs:${VERSION}-${DIST}" "opxhub/rootfs:latest"
+        docker push "opxhub/rootfs:${VERSION}-${DIST}"
+        docker push "opxhub/rootfs:$DIST"
+        docker push "opxhub/rootfs:latest"
+      }
+      DIST=stretch
+      TARBALL="opx-rootfs_${VERSION}-${DIST}_amd64.tar.gz"
+      buildkite-agent artifact download "${TARBALL}*" . && {
+        docker import "$TARBALL" "opxhub/rootfs:${VERSION}-${DIST}"
+        docker tag "opxhub/rootfs:${VERSION}-${DIST}" "opxhub/rootfs:$DIST"
+        docker push "opxhub/rootfs:${VERSION}-${DIST}"
+        docker push "opxhub/rootfs:$DIST"
+      }
+  - name: ":s3: publish"
+    type: script
+    branch_configuration: "master"
+    agent_query_rules: [ "queue=deploy" ]
+    concurrency: 1
+    concurrency_group: "archive.openswitch.net"
+    command: |
+      if [[ -z "$BUILDKITE_TAG" ]]; then
+        echo Not a tag, skipping...
+        exit
+      fi
+      UPLOAD="s3://archive.openswitch.net/rootfs"
+      VERSION="$(cat VERSION)"
+      DIST=jessie
+      TARBALL="opx-rootfs_${VERSION}-${DIST}_amd64.tar.gz"
+      buildkite-agent artifact download "${TARBALL}*" . && {
+        aws s3 cp "$TARBALL" "$UPLOAD/$TARBALL"
+        aws s3 cp "${TARBALL}.sha256" "$UPLOAD/${TARBALL}.sha256"
+      }
+      DIST=stretch
+      TARBALL="opx-rootfs_${VERSION}-${DIST}_amd64.tar.gz"
+      buildkite-agent artifact download "${TARBALL}*" . && {
+        aws s3 cp "$TARBALL" "$UPLOAD/$TARBALL"
+        aws s3 cp "${TARBALL}.sha256" "$UPLOAD/${TARBALL}.sha256"
+      }

@@ -1,6 +1,0 @@
-#!/bin/bash -eu
-
-# dst="${1}"
-
-cat - | jq '{ version: { ref: .version.ref } }'
-

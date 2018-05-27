@@ -81,12 +81,12 @@ class Pipeline:
         else:
             self.webhook = None
 
-        pipeline_file = Path(f"buildkite/{name}.yaml")
+        pipeline_file = Path(f"pipelines/{name}.yaml")
         if pipeline_file.exists():
             self.pipeline = yaml.safe_load(pipeline_file.open().read())
         else:
             if name in DEBIAN_REPOS:
-                pipeline_file = Path("buildkite/opx-debian.yaml.jinja2")
+                pipeline_file = Path("pipelines/opx-debian.yaml.jinja2")
                 self.pipeline = yaml.safe_load(
                     Template(pipeline_file.open().read()).render(
                         name=name, description="OpenSwitch Debian package"

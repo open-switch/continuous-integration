@@ -1,110 +1,31 @@
-groups: #######################################################################
-
-- name: commit
-  jobs: [codecov, pylama]
-
-- name: review
-  jobs: [pull-request-codecov, pull-request-pylama]
-
-resource_types: ###############################################################
-
-- name: pull-request
-  type: docker-image
-  source:
-    repository: jtarchie/pr
-
-resources: ####################################################################
-
-## Source repository ##
-
-- name: tools_opx-py
-  type: git
-  source:
-    uri: https://github.com/open-switch/tools_opx-py
-    branch: master
-
-- name: tools_opx-py-pr
-  type: pull-request
-  source:
-    access_token: ((github-pr))
-    repo: open-switch/tools_opx-py
-
-## CI configuration ##
-
-- name: concourse
-  type: git
-  source:
-    uri: https://github.com/open-switch/continuous-integration
-    branch: master
-
-jobs: #########################################################################
-
-- name: codecov
-  public: true
-  plan:
-  - aggregate:
-    - get: tools_opx-py
-      trigger: true
-    - get: concourse
-  - task: codecov
-    file: concourse/tasks/codecov-py/task.yaml
-    params:
-      CODECOV_TOKEN: ((codecov-token))
-    input_mapping:
-      src: tools_opx-py
-
-- name: pylama
-  public: true
-  plan:
-  - aggregate:
-    - get: tools_opx-py
-      trigger: true
-    - get: concourse
-  - task: pylama
-    file: concourse/tasks/pylama/task.yaml
-    input_mapping:
-      src: tools_opx-py
-
-- name: pull-request-codecov
-  public: true
-  plan:
-  - aggregate:
-    - get: tools_opx-py-pr
-      trigger: true
-      version: every
-    - get: concourse
-  - put: tools_opx-py-pr
-    params: {path: tools_opx-py-pr, status: pending, context: codecov}
-  - task: codecov
-    file: concourse/tasks/codecov-py/task.yaml
-    params:
-      CODECOV_TOKEN: ((codecov-token))
-    input_mapping:
-      src: tools_opx-py-pr
-    on_success:
-      put: tools_opx-py-pr
-      params: {path: tools_opx-py-pr, status: success, context: codecov}
-    on_failure:
-      put: tools_opx-py-pr
-      params: {path: tools_opx-py-pr, status: failure, context: codecov}
-
-- name: pull-request-pylama
-  public: true
-  plan:
-  - aggregate:
-    - get: tools_opx-py-pr
-      trigger: true
-      version: every
-    - get: concourse
-  - put: tools_opx-py-pr
-    params: {path: tools_opx-py-pr, status: pending, context: pylama}
-  - task: pylama
-    file: concourse/tasks/pylama/task.yaml
-    input_mapping:
-      src: tools_opx-py-pr
-    on_success:
-      put: tools_opx-py-pr
-      params: {path: tools_opx-py-pr, status: success, context: pylama}
-    on_failure:
-      put: tools_opx-py-pr
-      params: {path: tools_opx-py-pr, status: failure, context: pylama}
+name: tools_opx-py
+description: OpenSwitch ONIE Installer
+repository: "https://github.com/open-switch/tools_opx-py"
+team_uuids:
+  - "e22748d1-7895-4621-96b3-a61b05da4453"
+  - "e3092df6-84d1-4756-b720-41f5f5df0da5"
+skip_queued_branch_builds: true
+skip_queued_branch_builds_filter: "!master"
+provider_settings:
+  build_pull_request_forks: true
+  build_pull_requests: true
+  build_tags: true
+  prefix_pull_request_fork_branch_names: true
+  publish_commit_status: true
+  publish_commit_status_per_step: false
+  pull_request_branch_filter_enabled: false
+  skip_pull_request_builds_for_existing_commits: true
+  trigger_mode: "code"
+steps:
+  - name: ":python: Format and Test"
+    type: script
+    command: |
+      echo "--- Installing dependencies"
+      pipenv install --deploy --dev
+      pipenv run pip install black
+      echo "--- Running formatter"
+      DIFF="$(pipenv run black . --diff --quiet)"
+      [[ -n "$DIFF"  ]] && echo "^^^ +++ Black failed.\n$DIFF" && exit 1
+      echo "+++ Testing"
+      pipenv run pytest --cov=opx/ tests/ --cov-report=xml --cov-report=term
+      bash <(curl -s https://codecov.io/bash)

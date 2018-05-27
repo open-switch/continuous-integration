@@ -1,242 +1,65 @@
-groups: #######################################################################
-
-- name: release
-  jobs: [release-2.3.1]
-
-- name: weekly
-  jobs:
-  - weekly-unstable-jessie
-  - weekly-stable-jessie
-
-- name: review
-  jobs: [check-jessie, pull-request-jessie]
-
-resource_types: ###############################################################
-
-- name: gerrit
-  type: docker-image
-  source:
-    repository: us.gcr.io/concourse-resources/gerrit-resource
-
-- name: pull-request
-  type: docker-image
-  source:
-    repository: jtarchie/pr
-
-resources: ####################################################################
-
-## Source repository ##
-
-- name: opx-onie-installer
-  type: git
-  source:
-    uri: https://github.com/open-switch/opx-onie-installer
-    branch: master
-
-- name: opx-onie-installer-pr
-  type: pull-request
-  source:
-    access_token: ((github-pr))
-    repo: open-switch/opx-onie-installer
-
-- name: review-opx-onie-installer
-  type: gerrit
-  source:
-    url: https://review.openswitch.net
-    username: ((gerrit.username))
-    password: ((gerrit.password))
-    digest_auth: true
-    query: "status:open project:opx/opx-onie-installer"
-
-## Artifacts ##
-
-- name: 2.3.1-installer
-  type: s3
-  source:
-    bucket: archive.openswitch.net
-    versioned_file: installers/2.3.1/Dell-EMC/PKGS_OPX-2.3.1-installer-x86_64.bin
-    region_name: us-west-2
-    access_key_id: ((aws-s3.access-key))
-    secret_access_key: ((aws-s3.secret-key))
-
-- name: 2.3.1-installer-checksum
-  type: s3
-  source:
-    bucket: archive.openswitch.net
-    versioned_file: installers/2.3.1/Dell-EMC/PKGS_OPX-2.3.1-installer-x86_64.bin.sha256
-    region_name: us-west-2
-    access_key_id: ((aws-s3.access-key))
-    secret_access_key: ((aws-s3.secret-key))
-
-- name: jessie-stable-installer
-  type: s3
-  source:
-    bucket: archive.openswitch.net
-    versioned_file: installers/stable/Dell-EMC/PKGS_OPX-stable-jessie-installer-x86_64.bin
-    region_name: us-west-2
-    access_key_id: ((aws-s3.access-key))
-    secret_access_key: ((aws-s3.secret-key))
-
-- name: jessie-stable-installer-checksum
-  type: s3
-  source:
-    bucket: archive.openswitch.net
-    versioned_file: installers/stable/Dell-EMC/PKGS_OPX-stable-jessie-installer-x86_64.bin.sha256
-    region_name: us-west-2
-    access_key_id: ((aws-s3.access-key))
-    secret_access_key: ((aws-s3.secret-key))
-
-- name: jessie-unstable-installer
-  type: s3
-  source:
-    bucket: archive.openswitch.net
-    versioned_file: installers/unstable/Dell-EMC/PKGS_OPX-unstable-jessie-installer-x86_64.bin
-    region_name: us-west-2
-    access_key_id: ((aws-s3.access-key))
-    secret_access_key: ((aws-s3.secret-key))
-
-- name: jessie-unstable-installer-checksum
-  type: s3
-  source:
-    bucket: archive.openswitch.net
-    versioned_file: installers/unstable/Dell-EMC/PKGS_OPX-unstable-jessie-installer-x86_64.bin.sha256
-    region_name: us-west-2
-    access_key_id: ((aws-s3.access-key))
-    secret_access_key: ((aws-s3.secret-key))
-
-## CI configuration ##
-
-- name: concourse
-  type: git
-  source:
-    uri: https://github.com/open-switch/continuous-integration
-    branch: master
-
-- name: weekly
-  type: time
-  source:
-    interval: 168h
-
-jobs: #########################################################################
-
-- name: release-2.3.1
-  public: true
-  plan:
-  - aggregate:
-    - get: opx-onie-installer
-    - get: concourse
-  - task: build
-    attempts: 3
-    privileged: true
-    file: concourse/tasks/onie-installer-jessie/task.yaml
-    params:
-      DIST: jessie
-      OPX_RELEASE: 2.3.1
-  - put: 2.3.1-installer
-    params:
-      file: opx-onie-installer-artifacts/PKGS_OPX-*.bin
-      acl: public-read
-  - put: 2.3.1-installer-checksum
-    params:
-      file: opx-onie-installer-artifacts/PKGS_OPX-*.bin.sha256
-      acl: public-read
-
-- name: weekly-stable-jessie
-  public: true
-  plan:
-  - aggregate:
-    - get: weekly
-      trigger: true
-    - get: opx-onie-installer
-    - get: concourse
-  - task: build
-    attempts: 3
-    privileged: true
-    file: concourse/tasks/onie-installer-jessie/task.yaml
-    params:
-      DIST: jessie
-      OPX_RELEASE: stable
-  - put: jessie-stable-installer
-    params:
-      file: opx-onie-installer-artifacts/PKGS_OPX-*.bin
-      acl: public-read
-  - put: jessie-stable-installer-checksum
-    params:
-      file: opx-onie-installer-artifacts/PKGS_OPX-*.bin.sha256
-      acl: public-read
-
-- name: weekly-unstable-jessie
-  public: true
-  plan:
-  - aggregate:
-    - get: weekly
-      trigger: true
-    - get: opx-onie-installer
-    - get: concourse
-  - task: build
-    attempts: 3
-    privileged: true
-    file: concourse/tasks/onie-installer-jessie/task.yaml
-    params:
+name: opx-onie-installer
+description: OpenSwitch ONIE Installer
+repository: "https://github.com/open-switch/opx-onie-installer"
+team_uuids:
+  - "e22748d1-7895-4621-96b3-a61b05da4453"
+  - "e3092df6-84d1-4756-b720-41f5f5df0da5"
+skip_queued_branch_builds: true
+skip_queued_branch_builds_filter: "!master"
+provider_settings:
+  build_pull_request_forks: true
+  build_pull_requests: true
+  build_tags: true
+  prefix_pull_request_fork_branch_names: true
+  publish_commit_status: true
+  publish_commit_status_per_step: false
+  pull_request_branch_filter_enabled: false
+  skip_pull_request_builds_for_existing_commits: true
+  trigger_mode: "code"
+steps:
+  - name: ":debian: Jessie Unstable"
+    type: script
+    env:
       DIST: jessie
       OPX_RELEASE: unstable
-  - put: jessie-unstable-installer
-    params:
-      file: opx-onie-installer-artifacts/PKGS_OPX-*.bin
-      acl: public-read
-  - put: jessie-unstable-installer-checksum
-    params:
-      file: opx-onie-installer-artifacts/PKGS_OPX-*.bin.sha256
-      acl: public-read
-
-- name: check-jessie
-  public: true
-  plan:
-  - aggregate:
-    - get: review-opx-onie-installer
-      trigger: true
-      version: every
-    - get: concourse
-  - task: build
-    attempts: 3
-    privileged: true
-    file: concourse/tasks/onie-installer-jessie/task.yaml
-    input_mapping:
-      opx-onie-installer: review-opx-onie-installer
-    params:
-      DIST: jessie
-      OPX_RELEASE: unstable
-    on_success:
-      put: review-opx-onie-installer
-      params:
-        repository: review-opx-onie-installer
-        message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} succeeded!"
-        labels: {Verified: 2}
-    on_failure:
-      put: review-opx-onie-installer
-      params:
-        repository: review-opx-onie-installer
-        message: "Build ci/${BUILD_TEAM_NAME}/${BUILD_PIPELINE_NAME}/${BUILD_JOB_NAME}/${BUILD_NAME} failed."
-        labels: {Verified: -1}
-
-- name: pull-request-jessie
-  public: true
-  plan:
-  - aggregate:
-    - get: opx-onie-installer-pr
-      trigger: true
-      version: every
-    - get: concourse
-  - put: opx-onie-installer-pr
-    params: {path: opx-onie-installer-pr, status: pending, context: jessie}
-  - task: build
-    attempts: 3
-    file: concourse/tasks/onie-installer-jessie/task.yaml
-    input_mapping:
-      opx-onie-installer: opx-onie-installer-pr
-    on_success:
-      put: opx-onie-installer-pr
-      params: {path: opx-onie-installer-pr, status: success, context: jessie}
-    on_failure:
-      put: opx-onie-installer-pr
-      params: {path: opx-onie-installer-pr, status: failure, context: jessie}
+      INSTALLER: "PKGS_OPX-unstable-jessie-installer-x86_64.bin"
+    command: |
+      if [[ -n "$BUILDKITE_TAG" ]]; then
+        OPX_RELEASE="$(echo $BUILDKITE_TAG | tail -c+2)"
+        INSTALLER="PKGS_OPX-${OPX_RELEASE}-installer-x86_64.bin"
+      fi
+      cd ..
+      echo "+++ Building installer"
+      docker run \
+        --rm \
+        --privileged \
+        -e LOCAL_UID=$(id -u ${USER}) \
+        -e LOCAL_GID=$(id -g ${USER}) \
+        -v ${PWD}:/mnt \
+        -e DIST \
+        -e OPX_RELEASE \
+        opxhub/build sh -l -c \
+          "opx_rel_pkgasm.py --dist $OPX_RELEASE -n 0 -b opx-onie-installer/release_bp/OPX_dell_base.xml"
+      echo "--- Organizing artifacts"
+      mv "PKGS_OPX-${OPX_RELEASE}-installer-x86_64.bin" "$INSTALLER"
+      sha256sum "$INSTALLER" >"${INSTALLER}.sha256"
+      buildkite-agent artifact upload "${INSTALLER}*"
+  - type: waiter
+  - name: ":s3: publish"
+    type: script
+    branch_configuration: "master"
+    agent_query_rules: [ "queue=deploy" ]
+    concurrency: 1
+    concurrency_group: "archive.openswitch.net"
+    command: |
+      if [[ -z "$BUILDKITE_TAG" ]]; then
+        echo Not a tag, skipping...
+        exit
+      fi
+      echo "--- Uploading Unstable installer"
+      OPX_RELEASE="$(echo $BUILDKITE_TAG | tail -c+2)"
+      UPLOAD="s3://archive.openswitch.net/installers/$OPX_RELEASE/Dell-EMC"
+      INSTALLER="PKGS_OPX-$OPX_RELEASE-installer-x86_64.bin"
+      buildkite-agent artifact download "${INSTALLER}*" .
+      aws s3 cp "$INSTALLER" "$UPLOAD/$INSTALLER"
+      aws s3 cp "${INSTALLER}.sha256" "$UPLOAD/${INSTALLER}.sha256"
