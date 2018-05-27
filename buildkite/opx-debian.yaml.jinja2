@@ -92,7 +92,7 @@ steps:
         OPX_RELEASE=testing
       fi
       cd ..
-      echo "--- Publishing Jessie packages to opx-$OPX_RELEASE"
+      echo "+++ Publishing Jessie packages to opx-$OPX_RELEASE"
       DIST=jessie
       buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
       aptly repo include -keyring=AD5073F1 -repo="opx-$OPX_RELEASE" -accept-unsigned \
