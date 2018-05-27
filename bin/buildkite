@@ -50,15 +50,15 @@ DEBIAN_REPOS = [
 
 
 ALL_REPOS = DEBIAN_REPOS + [
-    "continuous-integration",
+    # "continuous-integration",
     "github",
     "opx-build",
     "opx-core",
-    "opx-docs",
-    "opx-manifest",
-    "opx-northbound",
+    # "opx-docs",
+    # "opx-manifest",
+    # "opx-northbound",
     "opx-onie-installer",
-    "opx-test",
+    # "opx-test",
     "rootfs",
     "tools_opx-py",
 ]
