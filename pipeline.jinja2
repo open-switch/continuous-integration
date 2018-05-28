@@ -21,7 +21,6 @@ steps:
     type: script
     agent_query_rules: [ "queue=deploy" ]
     command: |
-      # TODO: change theucke to open-switch
-      curl -sL "https://raw.githubusercontent.com/theucke/continuous-integration/feature/pipeline-yaml/pipelines/{{ file }}.yaml" | buildkite-agent pipeline upload --no-interpolation
+      curl -sL "https://raw.githubusercontent.com/open-switch/continuous-integration/master/pipelines/{{ file }}.yaml" | buildkite-agent pipeline upload --no-interpolation
 
 # vim: ft=yaml
