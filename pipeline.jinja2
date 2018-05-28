@@ -19,6 +19,7 @@ provider_settings:
 steps:
   - name: ":pipeline:"
     type: script
+    agent_query_rules: [ "queue=deploy" ]
     command: |
       # TODO: change theucke to open-switch
       curl -sL "https://raw.githubusercontent.com/theucke/continuous-integration/feature/pipeline-yaml/pipelines/{{ file }}.yaml" | buildkite-agent pipeline upload --no-interpolation
