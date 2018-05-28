@@ -5,11 +5,11 @@ steps:
       OPX_RELEASE: unstable
     command: |
       if [[ -n "$BUILDKITE_TAG" ]]; then
-        VERSION="$(grep ^Version: DEBIAN/control | awk -F': ' '{print \$2}')"
+        VERSION="$(grep ^Version: DEBIAN/control | cut -d' ' -f2)"
         OPX_RELEASE=testing
       else
         echo "--- Bumping version with git sha and date"
-        v="$(grep ^Version: DEBIAN/control | awk -F': ' '{print \$2}')"
+        v="$(grep ^Version: DEBIAN/control | cut -d' ' -f2)"
         if [[ $v == *"+"* ]]; then s="."; else s="+"; fi
         VERSION="${v}${s}git$(date +%Y%m%d).$(git rev-parse --short HEAD)"
         echo "Bumping from $v to $VERSION"
@@ -38,11 +38,11 @@ steps:
       OPX_RELEASE: unstable
     command: |
       if [[ -n "$BUILDKITE_TAG" ]]; then
-        VERSION="$(grep ^Version: DEBIAN/control | awk -F': ' '{print \$2}')"
+        VERSION="$(grep ^Version: DEBIAN/control | cut -d' ' -f2)"
         OPX_RELEASE=testing
       else
         echo "--- Bumping version with git sha and date"
-        v="$(grep ^Version: DEBIAN/control | awk -F': ' '{print \$2}')"
+        v="$(grep ^Version: DEBIAN/control | cut -d' ' -f2)"
         if [[ $v == *"+"* ]]; then s="."; else s="+"; fi
         VERSION="${v}${s}git$(date +%Y%m%d).$(git rev-parse --short HEAD)"
         echo "Bumping from $v to $VERSION"
