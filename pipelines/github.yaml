@@ -1,43 +1,23 @@
-name: github
-description: OpenSwitch GitHub organization
-repository: "https://github.com/open-switch/github"
-team_uuids:
-  - "e22748d1-7895-4621-96b3-a61b05da4453"
-  - "e3092df6-84d1-4756-b720-41f5f5df0da5"
-skip_queued_branch_builds: true
-skip_queued_branch_builds_filter: "!master"
-provider_settings:
-  build_pull_request_forks: true
-  build_pull_requests: true
-  build_tags: false
-  prefix_pull_request_fork_branch_names: true
-  publish_commit_status: true
-  publish_commit_status_per_step: false
-  pull_request_branch_filter_enabled: false
-  skip_pull_request_builds_for_existing_commits: true
-  trigger_mode: "code"
 steps:
   - name: ":terraform: plan"
-    type: script
-    agent_query_rules: [ "queue=deploy" ]
+    agents: {queue: deploy}
     artifact_paths: tfplan
     concurrency: 1
-    concurrency_group: "terraform/github"
-    command: |
-      echo "--- Running terraform init"
-      terraform init -input=false
-      echo "+++ Running terraform plan"
-      terraform plan -input=false -out=tfplan
-  - type: waiter
+    concurrency_group: terraform/github
+    command:
+      - echo "--- Running terraform init"
+      - terraform init -input=false
+      - echo "+++ Running terraform plan"
+      - terraform plan -input=false -out=tfplan
+  - wait:
   - name: ":terraform: apply"
-    type: script
-    branch_configuration: "master"
-    agent_query_rules: [ "queue=deploy" ]
+    branches: "master"
+    agents: {queue: deploy}
     concurrency: 1
-    concurrency_group: "terraform/github"
-    command: |
-      echo "--- Running terraform init"
-      buildkite-agent artifact download tfplan .
-      terraform init -input=false
-      echo "+++ Running terraform apply"
-      terraform apply -input=false tfplan
+    concurrency_group: terraform/github
+    command:
+      - echo "--- Running terraform init"
+      - buildkite-agent artifact download tfplan .
+      - terraform init -input=false
+      - echo "+++ Running terraform apply"
+      - terraform apply -input=false tfplan

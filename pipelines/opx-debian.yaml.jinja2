@@ -78,7 +78,6 @@ steps:
       echo "--- Uploading artifacts"
       buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*$(date +%Y%m%d)*"
   - type: waiter
-    continue_on_failure: true
   - name: ":debian: publish"
     type: script
     branch_configuration: "master dell*"

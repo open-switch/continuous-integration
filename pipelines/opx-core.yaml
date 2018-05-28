@@ -50,7 +50,6 @@ steps:
       echo "--- Uploading artifacts"
       buildkite-agent artifact upload "$OUTPUT/*"
   - type: waiter
-    continue_on_failure: true
   - name: ":debian: Stretch"
     type: script
     env:
@@ -84,7 +83,6 @@ steps:
       echo "--- Uploading artifacts"
       buildkite-agent artifact upload "$OUTPUT/*"
   - type: waiter
-    continue_on_failure: true
   - name: ":debian: publish"
     type: script
     branch_configuration: "master"
