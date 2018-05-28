@@ -1,31 +1,11 @@
-name: tools_opx-py
-description: OpenSwitch ONIE Installer
-repository: "https://github.com/open-switch/tools_opx-py"
-team_uuids:
-  - "e22748d1-7895-4621-96b3-a61b05da4453"
-  - "e3092df6-84d1-4756-b720-41f5f5df0da5"
-skip_queued_branch_builds: true
-skip_queued_branch_builds_filter: "!master"
-provider_settings:
-  build_pull_request_forks: true
-  build_pull_requests: true
-  build_tags: true
-  prefix_pull_request_fork_branch_names: true
-  publish_commit_status: true
-  publish_commit_status_per_step: false
-  pull_request_branch_filter_enabled: false
-  skip_pull_request_builds_for_existing_commits: true
-  trigger_mode: "code"
 steps:
-  - name: ":python: Format and Test"
-    type: script
+  - label: ":python: Format and Test"
     command: |
       echo "--- Installing dependencies"
       pipenv install --deploy --dev
       pipenv run pip install black
       echo "--- Running formatter"
-      DIFF="$(pipenv run black . --diff --quiet)"
-      [[ -n "$DIFF"  ]] && echo "^^^ +++ Black failed.\n$DIFF" && exit 1
+      pipenv run black --check
       echo "+++ Testing"
       pipenv run pytest --cov=opx/ tests/ --cov-report=xml --cov-report=term
       bash <(curl -s https://codecov.io/bash)

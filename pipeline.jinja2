@@ -21,6 +21,6 @@ steps:
     type: script
     command: |
       # TODO: change theucke to open-switch
-      curl -sL "https://raw.githubusercontent.com/theucke/continuous-integration/master/pipelines/{{ file }}.yaml" | buildkite-agent pipeline upload
+      curl -sL "https://raw.githubusercontent.com/theucke/continuous-integration/feature/pipeline-yaml/pipelines/{{ file }}.yaml" | buildkite-agent pipeline upload
 
 # vim: ft=yaml

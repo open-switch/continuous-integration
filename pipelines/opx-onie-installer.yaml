@@ -1,24 +1,5 @@
-name: opx-onie-installer
-description: OpenSwitch ONIE Installer
-repository: "https://github.com/open-switch/opx-onie-installer"
-team_uuids:
-  - "e22748d1-7895-4621-96b3-a61b05da4453"
-  - "e3092df6-84d1-4756-b720-41f5f5df0da5"
-skip_queued_branch_builds: true
-skip_queued_branch_builds_filter: "!master"
-provider_settings:
-  build_pull_request_forks: true
-  build_pull_requests: true
-  build_tags: true
-  prefix_pull_request_fork_branch_names: true
-  publish_commit_status: true
-  publish_commit_status_per_step: false
-  pull_request_branch_filter_enabled: false
-  skip_pull_request_builds_for_existing_commits: true
-  trigger_mode: "code"
 steps:
-  - name: ":debian: Jessie Unstable"
-    type: script
+  - label: ":debian: Jessie Unstable"
     env:
       DIST: jessie
       OPX_RELEASE: unstable
@@ -44,11 +25,10 @@ steps:
       mv "PKGS_OPX-${OPX_RELEASE}-installer-x86_64.bin" "$INSTALLER"
       sha256sum "$INSTALLER" >"${INSTALLER}.sha256"
       buildkite-agent artifact upload "${INSTALLER}*"
-  - type: waiter
-  - name: ":s3: publish"
-    type: script
-    branch_configuration: "master"
-    agent_query_rules: [ "queue=deploy" ]
+  - wait
+  - label: ":s3: publish"
+    branches: "master"
+    agents: {queue: deploy}
     concurrency: 1
     concurrency_group: "archive.openswitch.net"
     command: |
@@ -60,6 +40,7 @@ steps:
       OPX_RELEASE="$(echo $BUILDKITE_TAG | tail -c+2)"
       UPLOAD="s3://archive.openswitch.net/installers/$OPX_RELEASE/Dell-EMC"
       INSTALLER="PKGS_OPX-$OPX_RELEASE-installer-x86_64.bin"
-      buildkite-agent artifact download "${INSTALLER}*" .
-      aws s3 cp "$INSTALLER" "$UPLOAD/$INSTALLER"
-      aws s3 cp "${INSTALLER}.sha256" "$UPLOAD/${INSTALLER}.sha256"
+      buildkite-agent artifact download "${INSTALLER}*" . && {
+        aws s3 cp "$INSTALLER" "$UPLOAD/$INSTALLER"
+        aws s3 cp "${INSTALLER}.sha256" "$UPLOAD/${INSTALLER}.sha256"
+      }

@@ -1,24 +1,5 @@
-name: {{ name }}
-description: {{ description }}
-repository: "https://github.com/open-switch/{{ name }}"
-team_uuids:
-  - "e22748d1-7895-4621-96b3-a61b05da4453"
-  - "e3092df6-84d1-4756-b720-41f5f5df0da5"
-skip_queued_branch_builds: true
-skip_queued_branch_builds_filter: "!master !dell*"
-provider_settings:
-  build_pull_request_forks: true
-  build_pull_requests: true
-  build_tags: true
-  prefix_pull_request_fork_branch_names: true
-  publish_commit_status: true
-  publish_commit_status_per_step: false
-  pull_request_branch_filter_enabled: false
-  skip_pull_request_builds_for_existing_commits: true
-  trigger_mode: "code"
 steps:
-  - name: ":debian: Jessie"
-    type: script
+  - label: ":debian: Jessie"
     env:
       DIST: jessie
       OPX_RELEASE: unstable
@@ -47,8 +28,7 @@ steps:
         opxhub/build sh -l -c "opx_build $BUILDKITE_PIPELINE_SLUG"
       echo "--- Uploading artifacts"
       buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*$(date +%Y%m%d)*"
-  - name: ":debian: Stretch"
-    type: script
+  - label: ":debian: Stretch"
     env:
       DIST: stretch
       OPX_RELEASE: unstable
@@ -77,11 +57,11 @@ steps:
         opxhub/build sh -l -c "opx_build $BUILDKITE_PIPELINE_SLUG"
       echo "--- Uploading artifacts"
       buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*$(date +%Y%m%d)*"
-  - type: waiter
-  - name: ":debian: publish"
-    type: script
-    branch_configuration: "master dell*"
-    agent_query_rules: [ "queue=aptly" ]
+  - wait: ~
+    continue_on_failure: true
+  - label: ":debian: publish"
+    branches: "master dell*"
+    agents: {queue: aptly}
     concurrency: 1
     concurrency_group: "deb.openswitch.net"
     env:
@@ -93,26 +73,26 @@ steps:
       cd ..
       echo "+++ Publishing Jessie packages to opx-$OPX_RELEASE"
       DIST=jessie
-      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
-      aptly repo include -keyring=AD5073F1 -repo="opx-$OPX_RELEASE" -accept-unsigned \
-        pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
-      aptly publish update $OPX_RELEASE s3:opx:
-      aptly publish update $OPX_RELEASE s3:opx:$DIST
+      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" . && {
+        aptly repo include -keyring=AD5073F1 -repo="opx-$OPX_RELEASE" -accept-unsigned \
+          pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
+        aptly publish update $OPX_RELEASE s3:opx:
+        aptly publish update $OPX_RELEASE s3:opx:$DIST
+        }
       echo "--- Publishing Stretch packages to opx-${OPX_RELEASE}-stretch"
       DIST=stretch
-      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
-      if [[ -n "$BUILDKITE_TAG" ]]; then
-        aptly repo include -keyring=AD5073F1 -repo="opx-stretch" -accept-unsigned \
-          pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
-      else
-        aptly repo include -keyring=AD5073F1 -repo="opx-${OPX_RELEASE}-stretch" -accept-unsigned \
-          pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
-      fi
-      aptly publish update $OPX_RELEASE s3:opx:$DIST
-      # update graph
-      echo "--- Updating graph"
+      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" . && {
+        if [[ -n "$BUILDKITE_TAG" ]]; then
+          aptly repo include -keyring=AD5073F1 -repo="opx-stretch" -accept-unsigned \
+            pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
+        else
+          aptly repo include -keyring=AD5073F1 -repo="opx-${OPX_RELEASE}-stretch" -accept-unsigned \
+            pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
+        fi
+        aptly publish update $OPX_RELEASE s3:opx:$DIST
+      }
+      echo "--- Updating http://deb.openswitch.net/apt.svg"
       aptly graph -format=svg -layout=vertical -output=apt.svg
       aws s3 cp apt.svg s3://deb.openswitch.net/ --acl public-read
-      echo "http://deb.openswitch.net/apt.svg"
 
 # vim: ft=yaml
