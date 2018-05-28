@@ -250,12 +250,12 @@ def main():
         for name in DEBIAN_REPOS:
             print(f"Running {args.action} on {name}")
             L.info(
-                getattr(Pipeline(name, args.webhook, args.repository), args.action)()
+                getattr(Pipeline(name, args.webhook, name), args.action)()
             )
     elif args.name == "all":
         for name in ALL_REPOS:
             L.info(
-                getattr(Pipeline(name, args.webhook, args.repository), args.action)()
+                getattr(Pipeline(name, args.webhook, name), args.action)()
             )
     else:
         L.info(

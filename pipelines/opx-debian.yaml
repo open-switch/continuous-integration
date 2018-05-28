@@ -94,5 +94,3 @@ steps:
       echo "--- Updating http://deb.openswitch.net/apt.svg"
       aptly graph -format=svg -layout=vertical -output=apt.svg
       aws s3 cp apt.svg s3://deb.openswitch.net/ --acl public-read
-
-# vim: ft=yaml
