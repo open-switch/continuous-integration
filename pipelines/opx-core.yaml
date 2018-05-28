@@ -1,24 +1,5 @@
-name: opx-core
-description: OPX Metapackage
-repository: "https://github.com/open-switch/opx-core"
-team_uuids:
-  - "e22748d1-7895-4621-96b3-a61b05da4453"
-  - "e3092df6-84d1-4756-b720-41f5f5df0da5"
-skip_queued_branch_builds: true
-skip_queued_branch_builds_filter: "!master !dell*"
-provider_settings:
-  build_pull_request_forks: true
-  build_pull_requests: true
-  build_tags: true
-  prefix_pull_request_fork_branch_names: true
-  publish_commit_status: true
-  publish_commit_status_per_step: false
-  pull_request_branch_filter_enabled: false
-  skip_pull_request_builds_for_existing_commits: true
-  trigger_mode: "code"
 steps:
-  - name: ":debian: Jessie"
-    type: script
+  - label: ":debian: Jessie"
     env:
       DIST: jessie
       OPX_RELEASE: unstable
@@ -49,10 +30,9 @@ steps:
         opxhub/build sh -l -c "dpkg-deb -b $BUILDKITE_PIPELINE_SLUG $OUTPUT"
       echo "--- Uploading artifacts"
       buildkite-agent artifact upload "$OUTPUT/*"
-  - type: waiter
+  - wait: ~
     continue_on_failure: true
-  - name: ":debian: Stretch"
-    type: script
+  - label: ":debian: Stretch"
     env:
       DIST: stretch
       OPX_RELEASE: unstable
@@ -83,12 +63,11 @@ steps:
         opxhub/build sh -l -c "dpkg-deb -b $BUILDKITE_PIPELINE_SLUG $OUTPUT"
       echo "--- Uploading artifacts"
       buildkite-agent artifact upload "$OUTPUT/*"
-  - type: waiter
+  - wait: ~
     continue_on_failure: true
-  - name: ":debian: publish"
-    type: script
-    branch_configuration: "master"
-    agent_query_rules: [ "queue=aptly" ]
+  - label: ":debian: publish"
+    branches: "master"
+    agents: {queue: aptly}
     concurrency: 1
     concurrency_group: "deb.openswitch.net"
     env:
@@ -101,18 +80,20 @@ steps:
       echo "+++ Publishing Jessie packages to opx-$OPX_RELEASE"
       DIST=jessie
       OUTPUT="pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG"
-      buildkite-agent artifact download "$OUTPUT/*" .
-      aptly repo add -remove-files "opx-$OPX_RELEASE" \
-        "$OUTPUT"
-      aptly publish update $OPX_RELEASE s3:opx:
-      aptly publish update $OPX_RELEASE s3:opx:$DIST
+      buildkite-agent artifact download "$OUTPUT/*" . && {
+        aptly repo add -remove-files "opx-$OPX_RELEASE" \
+          "$OUTPUT"
+        aptly publish update $OPX_RELEASE s3:opx:
+        aptly publish update $OPX_RELEASE s3:opx:$DIST
+      }
       echo "--- Publishing Stretch packages to opx-${OPX_RELEASE}-stretch"
       DIST=stretch
       OUTPUT="pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG"
-      buildkite-agent artifact download "$OUTPUT/*" .
-      if [[ -n "$BUILDKITE_TAG" ]]; then
-        aptly repo add -remove-files "opx-${DIST}" "$OUTPUT"
-      else
-        aptly repo add -remove-files "opx-${OPX_RELEASE}-${DIST}" "$OUTPUT"
-      fi
-      aptly publish update $OPX_RELEASE s3:opx:$DIST
+      buildkite-agent artifact download "$OUTPUT/*" . && {
+        if [[ -n "$BUILDKITE_TAG" ]]; then
+          aptly repo add -remove-files "opx-${DIST}" "$OUTPUT"
+        else
+          aptly repo add -remove-files "opx-${OPX_RELEASE}-${DIST}" "$OUTPUT"
+        fi
+        aptly publish update $OPX_RELEASE s3:opx:$DIST
+      }

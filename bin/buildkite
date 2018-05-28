@@ -73,7 +73,7 @@ def fatal(msg: str) -> None:
 class Pipeline:
     """Represents a Buildkite pipeline."""
 
-    def __init__(self, name: str, webhook: bool) -> None:
+    def __init__(self, name: str, webhook: bool, repository: str) -> None:
         self.name = name
         self.slug = name.replace("_", "-").lower()
         if webhook:
@@ -82,20 +82,22 @@ class Pipeline:
             self.webhook = None
 
         pipeline_file = Path(f"pipelines/{name}.yaml")
-        if pipeline_file.exists():
-            self.pipeline = yaml.safe_load(pipeline_file.open().read())
-        else:
+        if not pipeline_file.exists():
             if name in DEBIAN_REPOS:
-                pipeline_file = Path("pipelines/opx-debian.yaml.jinja2")
-                self.pipeline = yaml.safe_load(
-                    Template(pipeline_file.open().read()).render(
-                        name=name, description="OpenSwitch Debian package"
-                    )
-                )
+                pipeline_file = Path("pipelines/opx-debian.yaml")
             else:
                 raise FileNotFoundError(
                     errno.ENOENT, os.strerror(errno.ENOENT), str(pipeline_file)
                 )
+
+        self.pipeline = yaml.safe_load(
+            Template(Path("pipeline.jinja2").open().read()).render(
+                name=name,
+                description="OpenSwitch",
+                repository=repository,
+                file=pipeline_file.stem,
+            )
+        )
 
     def exists(self) -> bool:
         """Returns True if Buildkite says the pipeline exists."""
@@ -229,19 +231,30 @@ def main():
         "--no-webhook", action="store_false", dest="webhook", help="name of pipeline"
     )
 
+    parser.add_argument(
+        "--repository",
+        "-r",
+        default=None,
+        help="repository name, if different from pipeline name",
+    )
+
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
+    if args.repository is None:
+        args.repository = args.name
     L.debug(str(args))
 
     if args.name == "all-debian":
-        for repo in DEBIAN_REPOS:
-            print(f"Running {args.action} on {repo}")
-            L.info(getattr(Pipeline(repo, args.webhook), args.action)())
+        for name in DEBIAN_REPOS:
+            print(f"Running {args.action} on {name}")
+            L.info(getattr(Pipeline(name, args.webhook, name), args.action)())
     elif args.name == "all":
-        for repo in ALL_REPOS:
-            L.info(getattr(Pipeline(repo, args.webhook), args.action)())
+        for name in ALL_REPOS:
+            L.info(getattr(Pipeline(name, args.webhook, name), args.action)())
     else:
-        L.info(getattr(Pipeline(args.name, args.webhook), args.action)())
+        L.info(
+            getattr(Pipeline(args.name, args.webhook, args.repository), args.action)()
+        )
 
 
 if __name__ == "__main__":
