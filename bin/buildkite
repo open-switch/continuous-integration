@@ -87,13 +87,11 @@ class Pipeline:
                 pipeline_file = Path("pipelines/opx-debian.yaml")
             else:
                 raise FileNotFoundError(
-                    errno.ENOENT,
-                    os.strerror(errno.ENOENT),
-                    str(pipeline_file),
+                    errno.ENOENT, os.strerror(errno.ENOENT), str(pipeline_file)
                 )
 
         self.pipeline = yaml.safe_load(
-            Template(Path('pipeline.jinja2').open().read()).render(
+            Template(Path("pipeline.jinja2").open().read()).render(
                 name=name,
                 description="OpenSwitch",
                 repository=repository,
@@ -249,14 +247,10 @@ def main():
     if args.name == "all-debian":
         for name in DEBIAN_REPOS:
             print(f"Running {args.action} on {name}")
-            L.info(
-                getattr(Pipeline(name, args.webhook, name), args.action)()
-            )
+            L.info(getattr(Pipeline(name, args.webhook, name), args.action)())
     elif args.name == "all":
         for name in ALL_REPOS:
-            L.info(
-                getattr(Pipeline(name, args.webhook, name), args.action)()
-            )
+            L.info(getattr(Pipeline(name, args.webhook, name), args.action)())
     else:
         L.info(
             getattr(Pipeline(args.name, args.webhook, args.repository), args.action)()
