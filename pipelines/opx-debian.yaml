@@ -59,6 +59,60 @@ steps:
       buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*$(date +%Y%m%d)*"
   - wait: ~
     continue_on_failure: true
+  - label: ":ansible: smoke test Jessie"
+    agents: {queue: deploy}
+    env:
+      DIST: jessie
+      OPX_RELEASE: unstable
+    command: |
+      echo "--- Creating test instance"
+      set -euo pipefail
+      instance=$(aws ec2 run-instances --image-id ami-221ea342 --security-group-ids sg-79aad61d --count 1 --instance-type t2.small --subnet-id subnet-eb094a9c --key-name aws --query 'Instances[0].InstanceId' | cut -d'"' -f2)
+      echo "$instance" > ./instance
+      cleanup() {
+        [[ -z "$instance" ]] && read instance < ./instance
+        [[ $instance ]] && aws ec2 terminate-instances --instance-ids "$instance"
+      }
+      trap cleanup EXIT
+      echo "--- Getting test scripts"
+      smoke="smoke$(date +%s)"
+      rm -rf "$smoke"
+      git clone https://github.com/open-switch/opx-test "$smoke"
+      cat << EOF > "$smoke/inventory.yaml"
+[devices]
+baseVM ansible_host=$instance_ip
+[devices:vars]
+ansible_user=admin
+EOF
+      echo "--- Getting packages to test"
+      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
+      echo "--- Waiting for instance"
+      aws ec2 wait instance-status-ok --instance-ids "$instance"
+      instance_ip=$(aws ec2 describe-instances --instance-ids "$instance" --query 'Reservations[0].Instances[0].PublicIpAddress' | cut -d'"' -f2)
+      echo "--- Copying packages to instance and creating index"
+      ssh_aws="ssh -o StrictHostKeyChecking=no admin@$instance_ip"
+      $ssh_aws 'cat <<EOF | sudo tee /etc/apt/preferences
+Package: *
+Pin: origin ""
+Pin-Priority: 1001
+EOF'
+      $ssh_aws 'sudo apt-get update && sudo apt-get install -y dpkg-dev'
+      $ssh_aws 'sudo mkdir mydebs'
+      scp -o StrictHostKeychecking=no pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/* "admin@$instance_ip:mydebs/"
+      $ssh_aws 'cd mydebs && dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz'
+      $ssh_aws 'echo "deb [trusted=yes] file:/home/admin/mydebs ./" | sudo tee -a /etc/apt/sources.list'
+      echo "--- Installing packages"
+      $ssh_aws 'sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys AD5073F1'
+      $ssh_aws 'echo "deb http://deb.openswitch.net/jessie unstable main opx opx-non-free" | sudo tee -a /etc/apt/sources.list'
+      $ssh_aws 'sudo apt-get update'
+      $ssh_aws 'sudo apt-get install -y opx-dell-vm && echo "Installed opx-dell-vm"'
+      echo "--- Rebooting instance"
+      aws ec2 reboot-instances --instance-ids "$instance"
+      aws ec2 wait instance-status-ok --instance-ids "$instance"
+      sleep 210
+      echo "+++ Running smoke test"
+      pushd "$smoke"
+      ansible-playbook opx_smoketest.yaml --extra-vars "dut=baseVM" -u admin
   - label: ":debian: publish"
     branches: "master dell*"
     agents: {queue: aptly}
