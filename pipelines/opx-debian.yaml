@@ -79,11 +79,11 @@ steps:
       rm -rf "$smoke"
       git clone https://github.com/open-switch/opx-test "$smoke"
       cat << EOF > "$smoke/inventory.yaml"
-[devices]
-baseVM ansible_host=$instance_ip
-[devices:vars]
-ansible_user=admin
-EOF
+      [devices]
+      baseVM ansible_host=$instance_ip
+      [devices:vars]
+      ansible_user=admin
+      EOF
       echo "--- Getting packages to test"
       buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
       echo "--- Waiting for instance"
@@ -92,10 +92,10 @@ EOF
       echo "--- Copying packages to instance and creating index"
       ssh_aws="ssh -o StrictHostKeyChecking=no admin@$instance_ip"
       $ssh_aws 'cat <<EOF | sudo tee /etc/apt/preferences
-Package: *
-Pin: origin ""
-Pin-Priority: 1001
-EOF'
+      Package: *
+      Pin: origin ""
+      Pin-Priority: 1001
+      EOF'
       $ssh_aws 'sudo apt-get update && sudo apt-get install -y dpkg-dev'
       $ssh_aws 'sudo mkdir mydebs'
       scp -o StrictHostKeychecking=no pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/* "admin@$instance_ip:mydebs/"
