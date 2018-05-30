@@ -84,7 +84,7 @@ steps:
       aws ec2 wait instance-status-ok --instance-ids "$instance"
       aws ec2 create-tags --resources "$instance" --tags "Key=Name,Value=smoke-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
       instance_ip=$(aws ec2 describe-instances --instance-ids "$instance" --query 'Reservations[0].Instances[0].PublicIpAddress' | cut -d'"' -f2)
-      printf "[devices]\nbaseVM ansible_host=$instance_ip\n[devices:vars]\nansible_user=admin" >"$smoke/inventory.yaml"
+      printf "[devices]\nbaseVM ansible_host=$instance_ip\n[devices:vars]\nansible_user=admin" >"$smoke/hosts"
       echo "--- Copying packages to instance and creating index"
       ssh_aws="ssh -o StrictHostKeyChecking=no admin@$instance_ip"
       $ssh_aws "printf 'Package: *\nPin: origin \"\"\nPin-Priority: 1001' | sudo tee -a /etc/apt/preferences"
@@ -109,7 +109,7 @@ steps:
       sleep 210
       echo "+++ Running smoke test"
       pushd "$smoke"
-      ansible-playbook opx_smoketest.yaml --extra-vars "dut=baseVM" -u admin
+      ansible-playbook opx_smoketest.yaml -i hosts --extra-vars "dut=baseVM" -u admin
   - label: ":debian: publish"
     branches: "master dell*"
     agents: {queue: aptly}
