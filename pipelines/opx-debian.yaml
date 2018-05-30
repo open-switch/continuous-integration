@@ -75,13 +75,14 @@ steps:
       }
       trap cleanup EXIT
       echo "--- Getting test scripts"
-      smoke="smoke$(date +%s)"
-      rm -rf "$smoke"
+      smoke="smoke-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
+      rm -rf "smoke*"
       git clone https://github.com/open-switch/opx-test "$smoke"
       echo "--- Getting packages to test"
       buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
       echo "--- Waiting for instance"
       aws ec2 wait instance-status-ok --instance-ids "$instance"
+      aws ec2 create-tags --resources "$instance" --tags "Key=Name,Value=smoke-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
       instance_ip=$(aws ec2 describe-instances --instance-ids "$instance" --query 'Reservations[0].Instances[0].PublicIpAddress' | cut -d'"' -f2)
       printf "[devices]\nbaseVM ansible_host=$instance_ip\n[devices:vars]\nansible_user=admin" >"$smoke/inventory.yaml"
       echo "--- Copying packages to instance and creating index"
@@ -93,9 +94,9 @@ steps:
       Pin-Priority: 1001
       EOF'
       $ssh_aws 'sudo apt-get update && sudo apt-get install -y dpkg-dev'
-      $ssh_aws 'sudo mkdir mydebs'
+      $ssh_aws 'mkdir mydebs'
       scp -o StrictHostKeychecking=no pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/* "admin@$instance_ip:mydebs/"
-      $ssh_aws 'cd mydebs && dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz'
+      $ssh_aws 'cd mydebs && dpkg-scanpackages -m . 2>/dev/null | gzip -9c >Packages.gz'
       $ssh_aws 'echo "deb [trusted=yes] file:/home/admin/mydebs ./" | sudo tee -a /etc/apt/sources.list'
       echo "--- Installing packages"
       $ssh_aws 'sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys AD5073F1'
