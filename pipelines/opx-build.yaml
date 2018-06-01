@@ -1,9 +1,12 @@
 steps:
   - label: ":docker: opxhub/build"
-    command: ./docker_build.sh
+    command: |
+      echo "+++ Building Docker image"
+      ./docker_build.sh
   - wait
   - label: ":docker: push"
     branches: "master"
     command: |
+      echo "--- Pushing docker image"
       docker push opxhub/build:$(git log -1 --pretty=%h)
       docker push opxhub/build:latest
