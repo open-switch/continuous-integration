@@ -9,4 +9,5 @@ steps:
     command: |
       echo "--- Pushing docker image"
       docker push opxhub/build:$(git log -1 --pretty=%h)
+      docker tag opxhub/build:$(git log -1 --pretty=%h) opxhub/build:latest
       docker push opxhub/build:latest
