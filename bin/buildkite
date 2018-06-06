@@ -47,9 +47,7 @@ DEBIAN_REPOS = [
     "opx-tmpctl",
     "opx-tools",
 ]
-
-
-ALL_REPOS = DEBIAN_REPOS + [
+OTHER_REPOS = [
     # "continuous-integration",
     "github",
     "opx-build",
@@ -62,6 +60,7 @@ ALL_REPOS = DEBIAN_REPOS + [
     "rootfs",
     "tools_opx-py",
 ]
+ALL_REPOS = DEBIAN_REPOS + OTHER_REPOS
 
 
 def fatal(msg: str) -> None:
@@ -262,20 +261,7 @@ def main():
         args.repository = args.name
     L.debug(str(args))
 
-    if args.name == "all-debian":
-        for name in DEBIAN_REPOS:
-            print(f"Running {args.action} on {name}")
-            print(
-                getattr(
-                    DebianPipeline(f"{name}-jessie", args.webhook, name), args.action
-                )()
-            )
-            print(
-                getattr(
-                    DebianPipeline(f"{name}-stretch", args.webhook, name), args.action
-                )()
-            )
-    elif args.name in DEBIAN_REPOS:
+    if args.name in DEBIAN_REPOS:
         print(f"Running {args.action} on {args.name}")
         print(
             getattr(
@@ -289,9 +275,23 @@ def main():
                 args.action,
             )()
         )
-    elif args.name == "all":
-        for name in ALL_REPOS:
-            print(getattr(Pipeline(name, args.webhook, name), args.action)())
+    elif args.name == "all" or args.name == "all-debian":
+        if args.name == "all":
+            for name in OTHER_REPOS:
+                print(getattr(Pipeline(name, args.webhook, name), args.action)())
+
+        for name in DEBIAN_REPOS:
+            print(f"Running {args.action} on {name}")
+            print(
+                getattr(
+                    DebianPipeline(f"{name}-jessie", args.webhook, name), args.action
+                )()
+            )
+            print(
+                getattr(
+                    DebianPipeline(f"{name}-stretch", args.webhook, name), args.action
+                )()
+            )
     else:
         print(
             getattr(Pipeline(args.name, args.webhook, args.repository), args.action)()
