@@ -1,5 +1,9 @@
 # Buildkite
 
+```bash
+pipenv run bin/buildkite update all
+```
+
 # Agent bootstrap scripts
 
 Each queue has its own bootstrap script.

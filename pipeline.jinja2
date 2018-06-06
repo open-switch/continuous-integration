@@ -21,6 +21,10 @@ steps:
     type: script
     agent_query_rules: [ "queue=deploy" ]
     command: |
-      curl -sL "https://raw.githubusercontent.com/open-switch/continuous-integration/master/pipelines/{{ file }}.yaml" | buildkite-agent pipeline upload --no-interpolation
+      if [[ -e .buildkite/pipeline.yaml ]]; then
+        buildkite-agent pipeline upload --no-interpolation
+      else
+        curl -sL "https://raw.githubusercontent.com/open-switch/continuous-integration/master/pipelines/{{ file }}.yaml" | buildkite-agent pipeline upload --no-interpolation
+      fi
 
 # vim: ft=yaml

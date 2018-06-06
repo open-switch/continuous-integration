@@ -1,5 +1,5 @@
 steps:
-  - label: ":debian: Jessie"
+  - label: ":debian: Build"
     env:
       DIST: jessie
       OPX_RELEASE: unstable
@@ -28,38 +28,8 @@ steps:
         opxhub/build sh -l -c "opx_build $BUILDKITE_PIPELINE_SLUG"
       echo "--- Uploading artifacts"
       buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*$(date +%Y%m%d)*"
-  - label: ":debian: Stretch"
-    env:
-      DIST: stretch
-      OPX_RELEASE: unstable
-    command: |
-      if [[ -n "$BUILDKITE_TAG" ]]; then
-        VERSION="$(head -1 debian/changelog | awk -F'[()]' '{print $2}')"
-        OPX_RELEASE=testing
-      else
-        echo "--- Bumping version with git sha and date"
-        v="$(head -1 debian/changelog | awk -F'[()]' '{print $2}')"
-        if [[ $v == *"+"* ]]; then s="."; else s="+"; fi
-        VERSION="${v}${s}git$(date +%Y%m%d).$(git rev-parse --short HEAD)"
-        echo "Bumping from $v to $VERSION"
-        sed -i "s/$v/$VERSION/g" debian/changelog
-      fi
-      cd ..
-      echo "+++ Building packages"
-      docker run \
-        --rm \
-        --privileged \
-        -e LOCAL_UID=$(id -u ${USER}) \
-        -e LOCAL_GID=$(id -g ${USER}) \
-        -v ${PWD}:/mnt \
-        -e DIST \
-        -e OPX_RELEASE \
-        opxhub/build sh -l -c "opx_build $BUILDKITE_PIPELINE_SLUG"
-      echo "--- Uploading artifacts"
-      buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*$(date +%Y%m%d)*"
-  - wait: ~
-    continue_on_failure: true
-  - label: ":ansible: smoke test Jessie"
+  - wait
+  - label: ":ansible: Smoke Test"
     agents: {queue: deploy}
     env:
       DIST: jessie
@@ -95,7 +65,7 @@ steps:
       $ssh_aws 'echo "deb [trusted=yes] file:/home/admin/mydebs ./" | sudo tee -a /etc/apt/sources.list'
       echo "--- Installing packages"
       $ssh_aws 'sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys AD5073F1'
-      $ssh_aws 'echo "deb http://deb.openswitch.net/jessie unstable main opx opx-non-free" | sudo tee -a /etc/apt/sources.list'
+      $ssh_aws "echo 'deb http://deb.openswitch.net/$DIST unstable main opx opx-non-free' | sudo tee -a /etc/apt/sources.list"
       $ssh_aws 'sudo apt-get update'
       $ssh_aws 'sudo apt-get install -y opx-dell-vm && echo "Installed opx-dell-vm"'
       echo "--- Rebooting instance"
@@ -105,38 +75,26 @@ steps:
       echo "+++ Running smoke test"
       pushd "$smoke"
       ansible-playbook opx_smoketest.yaml -i hosts --extra-vars "dut=baseVM" -u admin
-  - label: ":debian: publish"
+  - wait
+  - label: ":s3: Publish"
     branches: "master dell*"
     agents: {queue: aptly}
     concurrency: 1
     concurrency_group: "deb.openswitch.net"
     env:
+      DIST: jessie
       OPX_RELEASE: unstable
     command: |
       if [[ -n "$BUILDKITE_TAG" ]]; then
         OPX_RELEASE=testing
       fi
       cd ..
-      echo "+++ Publishing Jessie packages to opx-$OPX_RELEASE"
-      DIST=jessie
-      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" . && {
-        aptly repo include -keyring=AD5073F1 -repo="opx-$OPX_RELEASE" -accept-unsigned \
-          pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
-        aptly publish update $OPX_RELEASE s3:opx:
-        aptly publish update $OPX_RELEASE s3:opx:$DIST
-        }
-      echo "--- Publishing Stretch packages to opx-${OPX_RELEASE}-stretch"
-      DIST=stretch
-      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" . && {
-        if [[ -n "$BUILDKITE_TAG" ]]; then
-          aptly repo include -keyring=AD5073F1 -repo="opx-stretch" -accept-unsigned \
-            pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
-        else
-          aptly repo include -keyring=AD5073F1 -repo="opx-${OPX_RELEASE}-stretch" -accept-unsigned \
-            pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
-        fi
-        aptly publish update $OPX_RELEASE s3:opx:$DIST
-      }
+      echo "+++ Publishing packages to opx-$OPX_RELEASE"
+      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
+      aptly repo include -keyring=AD5073F1 -repo="opx-$OPX_RELEASE" -accept-unsigned \
+        pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
+      aptly publish update $OPX_RELEASE s3:opx:
+      aptly publish update $OPX_RELEASE s3:opx:$DIST
       echo "--- Updating http://deb.openswitch.net/apt.svg"
       aptly graph -format=svg -layout=vertical -output=apt.svg
       aws s3 cp apt.svg s3://deb.openswitch.net/ --acl public-read

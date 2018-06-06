@@ -1,0 +1,105 @@
+steps:
+  - label: ":debian: Build"
+    env:
+      DIST: stretch
+      OPX_RELEASE: unstable
+    command: |
+      if [[ -n "$BUILDKITE_TAG" ]]; then
+        VERSION="$(head -1 debian/changelog | awk -F'[()]' '{print $2}')"
+        OPX_RELEASE=testing
+      else
+        echo "--- Bumping version with git sha and date"
+        v="$(head -1 debian/changelog | awk -F'[()]' '{print $2}')"
+        if [[ $v == *"+"* ]]; then s="."; else s="+"; fi
+        VERSION="${v}${s}git$(date +%Y%m%d).$(git rev-parse --short HEAD)"
+        echo "Bumping from $v to $VERSION"
+        sed -i "s/$v/$VERSION/g" debian/changelog
+      fi
+      cd ..
+      echo "+++ Building packages"
+      docker run \
+        --rm \
+        --privileged \
+        -e LOCAL_UID=$(id -u ${USER}) \
+        -e LOCAL_GID=$(id -g ${USER}) \
+        -v ${PWD}:/mnt \
+        -e DIST \
+        -e OPX_RELEASE \
+        opxhub/build sh -l -c "opx_build $BUILDKITE_PIPELINE_SLUG"
+      echo "--- Uploading artifacts"
+      buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*$(date +%Y%m%d)*"
+  - wait
+  - label: ":ansible: Smoke Test"
+    agents: {queue: deploy}
+    env:
+      DIST: stretch
+      OPX_RELEASE: unstable
+    command: |
+      echo "--- Creating test instance"
+      set -euo pipefail
+      instance=$(aws ec2 run-instances --image-id ami-dac6b5a2 --security-group-ids sg-79aad61d --count 1 --instance-type t2.small --subnet-id subnet-eb094a9c --key-name aws --query 'Instances[0].InstanceId' | cut -d'"' -f2)
+      echo "$instance" > ./instance
+      cleanup() {
+        [[ -z "$instance" ]] && read instance < ./instance
+        [[ $instance ]] && aws ec2 terminate-instances --instance-ids "$instance"
+      }
+      trap cleanup EXIT
+      echo "--- Getting test scripts"
+      smoke="smoke-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
+      rm -rf "smoke*"
+      git clone https://github.com/open-switch/opx-test "$smoke"
+      echo "--- Getting packages to test"
+      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
+      echo "--- Waiting for instance"
+      aws ec2 wait instance-status-ok --instance-ids "$instance"
+      aws ec2 create-tags --resources "$instance" --tags "Key=Name,Value=smoke-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
+      instance_ip=$(aws ec2 describe-instances --instance-ids "$instance" --query 'Reservations[0].Instances[0].PublicIpAddress' | cut -d'"' -f2)
+      printf "[devices]\nbaseVM ansible_host=$instance_ip\n[devices:vars]\nansible_user=admin" >"$smoke/hosts"
+      echo "--- Copying packages to instance and creating index"
+      ssh_aws="ssh -o StrictHostKeyChecking=no admin@$instance_ip"
+      $ssh_aws "printf 'Package: *\nPin: origin \"\"\nPin-Priority: 1001' | sudo tee /etc/apt/preferences"
+      $ssh_aws 'sudo apt-get update && sudo apt-get install -y dpkg-dev'
+      $ssh_aws 'mkdir mydebs'
+      scp -o StrictHostKeychecking=no pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/* "admin@$instance_ip:mydebs/"
+      $ssh_aws 'cd mydebs && dpkg-scanpackages -m . 2>/dev/null | gzip -9c >Packages.gz'
+      $ssh_aws 'echo "deb [trusted=yes] file:/home/admin/mydebs ./" | sudo tee -a /etc/apt/sources.list'
+      echo "--- Installing packages"
+      $ssh_aws 'sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys AD5073F1'
+      $ssh_aws "echo 'deb http://deb.openswitch.net/$DIST unstable main opx opx-non-free' | sudo tee -a /etc/apt/sources.list"
+      $ssh_aws 'sudo apt-get update'
+      $ssh_aws 'sudo apt-get install -y opx-dell-vm && echo "Installed opx-dell-vm"'
+      echo "--- Rebooting instance"
+      aws ec2 reboot-instances --instance-ids "$instance"
+      aws ec2 wait instance-status-ok --instance-ids "$instance"
+      sleep 210
+      echo "+++ Running smoke test"
+      pushd "$smoke"
+      ansible-playbook opx_smoketest.yaml -i hosts --extra-vars "dut=baseVM" -u admin
+  - wait: ~
+    continue_on_failure: true
+  - label: ":s3: Publish"
+    branches: "master dell*"
+    agents: {queue: aptly}
+    concurrency: 1
+    concurrency_group: "deb.openswitch.net"
+    env:
+      DIST: stretch
+      OPX_RELEASE: unstable
+    command: |
+      if [[ -n "$BUILDKITE_TAG" ]]; then
+        OPX_RELEASE=testing
+      fi
+      cd ..
+      echo "+++ Publishing packages to opx-${OPX_RELEASE}-${DIST}"
+      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
+      if [[ -n "$BUILDKITE_TAG" ]]; then
+        aptly repo include -keyring=AD5073F1 -repo="opx-${DIST}" -accept-unsigned \
+          pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
+      else
+        aptly repo include -keyring=AD5073F1 -repo="opx-${OPX_RELEASE}-${DIST}" -accept-unsigned \
+          pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
+      fi
+      aptly publish update $OPX_RELEASE s3:opx:$DIST
+      echo "--- Updating http://deb.openswitch.net/apt.svg"
+      aptly graph -format=svg -layout=vertical -output=apt.svg
+      aws s3 cp apt.svg s3://deb.openswitch.net/ --acl public-read

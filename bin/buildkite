@@ -83,12 +83,9 @@ class Pipeline:
 
         pipeline_file = Path(f"pipelines/{name}.yaml")
         if not pipeline_file.exists():
-            if name in DEBIAN_REPOS:
-                pipeline_file = Path("pipelines/opx-debian.yaml")
-            else:
-                raise FileNotFoundError(
-                    errno.ENOENT, os.strerror(errno.ENOENT), str(pipeline_file)
-                )
+            raise FileNotFoundError(
+                errno.ENOENT, os.strerror(errno.ENOENT), str(pipeline_file)
+            )
 
         self.pipeline = yaml.safe_load(
             Template(Path("pipeline.jinja2").open().read()).render(
@@ -121,7 +118,7 @@ class Pipeline:
             if not self.webhook.create(res.json()["provider"]["webhook_url"]):
                 L.warning("Could not create webhook. Please create it manually.")
 
-        return "Created!"
+        return f"Created {self.name}!"
 
     def read(self) -> str:
         """Retrieves current pipeline configuration from Buildkite."""
@@ -146,7 +143,7 @@ class Pipeline:
 
         res = requests.patch(f"{API}/{self.slug}", json=self.pipeline)
         res.raise_for_status()
-        return "Updated!"
+        return f"Updated {self.name}!"
 
     def delete(self) -> str:
         """Deletes pipeline if it already exists."""
@@ -162,7 +159,35 @@ class Pipeline:
                 L.warning("Could not delete webhook. Please delete it manually.")
 
         res.raise_for_status()
-        return "Deleted."
+        return f"Deleted {self.name}."
+
+
+class DebianPipeline(Pipeline):
+    """Represents a Debian repository pipeline with multiple distributions to build for."""
+
+    def __init__(self, name: str, webhook: bool, repository: str) -> None:
+        self.name = name
+        self.slug = name.replace("_", "-").lower()
+        if webhook:
+            self.webhook = Webhook(repository)
+        else:
+            self.webhook = None
+
+        pipeline_file = Path(f"pipelines/{name}.yaml".replace(repository, "opx-debian"))
+        if not pipeline_file.exists():
+            raise FileNotFoundError(
+                errno.ENOENT, os.strerror(errno.ENOENT), str(pipeline_file)
+            )
+        L.debug(f"pipeline file: {pipeline_file}")
+
+        self.pipeline = yaml.safe_load(
+            Template(Path("pipeline.jinja2").open().read()).render(
+                name=name,
+                description="OpenSwitch",
+                repository=repository,
+                file=pipeline_file.stem,
+            )
+        )
 
 
 class Webhook:
@@ -247,12 +272,33 @@ def main():
     if args.name == "all-debian":
         for name in DEBIAN_REPOS:
             print(f"Running {args.action} on {name}")
-            L.info(getattr(Pipeline(name, args.webhook, name), args.action)())
+            print(
+                getattr(
+                    DebianPipeline(f"{name}-jessie", args.webhook, name), args.action
+                )()
+            )
+            print(
+                getattr(
+                    DebianPipeline(f"{name}-stretch", args.webhook, name), args.action
+                )()
+            )
+    elif args.name in DEBIAN_REPOS:
+            print(f"Running {args.action} on {args.name}")
+            print(
+                getattr(
+                    DebianPipeline(f"{args.name}-jessie", args.webhook, args.name), args.action
+                )()
+            )
+            print(
+                getattr(
+                    DebianPipeline(f"{args.name}-stretch", args.webhook, args.name), args.action
+                )()
+            )
     elif args.name == "all":
         for name in ALL_REPOS:
-            L.info(getattr(Pipeline(name, args.webhook, name), args.action)())
+            print(getattr(Pipeline(name, args.webhook, name), args.action)())
     else:
-        L.info(
+        print(
             getattr(Pipeline(args.name, args.webhook, args.repository), args.action)()
         )
 
