@@ -16,7 +16,7 @@ steps:
         -v ${PWD}:/mnt \
         -e DIST \
         -e OPX_RELEASE \
-        opxhub/build sh -l -c \
+        opxhub/build:$DIST sh -l -c \
           "opx_rel_pkgasm.py --dist $OPX_RELEASE -n 0 -b opx-onie-installer/release_bp/OPX_dell_base.xml"
       echo "--- Organizing artifacts"
       rm -rf opx-onie-installer/
@@ -40,7 +40,7 @@ steps:
         -v ${PWD}:/mnt \
         -e DIST \
         -e OPX_RELEASE \
-        opxhub/build sh -l -c \
+        opxhub/build:$DIST sh -l -c \
           "opx_rel_pkgasm.py --dist $OPX_RELEASE -n 0 -b opx-onie-installer/release_bp/OPX_dell_base.xml"
       echo "--- Organizing artifacts"
       rm -rf opx-onie-installer/
