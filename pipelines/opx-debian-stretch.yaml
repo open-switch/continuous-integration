@@ -58,7 +58,7 @@ steps:
       echo "--- Copying packages to instance and creating index"
       ssh_aws="ssh -o StrictHostKeyChecking=no admin@$instance_ip"
       $ssh_aws "printf 'Package: *\nPin: origin \"\"\nPin-Priority: 1001' | sudo tee /etc/apt/preferences"
-      $ssh_aws 'sudo apt-get update && sudo apt-get install -y dpkg-dev'
+      $ssh_aws 'sudo apt-get update && sudo apt-get install -y dirmngr dpkg-dev'
       $ssh_aws 'mkdir mydebs'
       scp -o StrictHostKeychecking=no pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/* "admin@$instance_ip:mydebs/"
       $ssh_aws 'cd mydebs && dpkg-scanpackages -m . 2>/dev/null | gzip -9c >Packages.gz'
