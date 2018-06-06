@@ -82,10 +82,7 @@ class Pipeline:
             self.webhook = None
 
         pipeline_file = Path(f"pipelines/{name}.yaml")
-        if not pipeline_file.exists():
-            raise FileNotFoundError(
-                errno.ENOENT, os.strerror(errno.ENOENT), str(pipeline_file)
-            )
+        L.debug(f"potential pipeline file: {pipeline_file}")
 
         self.pipeline = yaml.safe_load(
             Template(Path("pipeline.jinja2").open().read()).render(
@@ -174,11 +171,7 @@ class DebianPipeline(Pipeline):
             self.webhook = None
 
         pipeline_file = Path(f"pipelines/{name}.yaml".replace(repository, "opx-debian"))
-        if not pipeline_file.exists():
-            raise FileNotFoundError(
-                errno.ENOENT, os.strerror(errno.ENOENT), str(pipeline_file)
-            )
-        L.debug(f"pipeline file: {pipeline_file}")
+        L.debug(f"potential pipeline file: {pipeline_file}")
 
         self.pipeline = yaml.safe_load(
             Template(Path("pipeline.jinja2").open().read()).render(
