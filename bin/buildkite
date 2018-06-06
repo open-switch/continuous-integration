@@ -283,17 +283,19 @@ def main():
                 )()
             )
     elif args.name in DEBIAN_REPOS:
-            print(f"Running {args.action} on {args.name}")
-            print(
-                getattr(
-                    DebianPipeline(f"{args.name}-jessie", args.webhook, args.name), args.action
-                )()
-            )
-            print(
-                getattr(
-                    DebianPipeline(f"{args.name}-stretch", args.webhook, args.name), args.action
-                )()
-            )
+        print(f"Running {args.action} on {args.name}")
+        print(
+            getattr(
+                DebianPipeline(f"{args.name}-jessie", args.webhook, args.name),
+                args.action,
+            )()
+        )
+        print(
+            getattr(
+                DebianPipeline(f"{args.name}-stretch", args.webhook, args.name),
+                args.action,
+            )()
+        )
     elif args.name == "all":
         for name in ALL_REPOS:
             print(getattr(Pipeline(name, args.webhook, name), args.action)())
