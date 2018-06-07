@@ -31,53 +31,11 @@ steps:
   - wait
   - label: ":ansible: Smoke Test"
     agents: {queue: deploy}
-    env:
-      DIST: stretch
-      OPX_RELEASE: unstable
-    command: |
-      set -euo pipefail
-      smoke="smoke-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
-      echo "--- Creating test instance"
-      cd ..
-      instance=$(aws ec2 run-instances --image-id ami-dac6b5a2 --security-group-ids sg-79aad61d --count 1 --instance-type t2.small --subnet-id subnet-eb094a9c --key-name aws --query 'Instances[0].InstanceId' | cut -d'"' -f2)
-      echo "$instance" > ./instance
-      cleanup() {
-        [[ -z "$instance" ]] && read instance < ./instance
-        [[ $instance ]] && aws ec2 terminate-instances --instance-ids "$instance"
-        rm -rf "$smoke"
-        cd ..
-        rm -rf "$smoke"
-      }
-      trap cleanup EXIT
-      echo "--- Getting test scripts"
-      git clone https://github.com/open-switch/opx-test "$smoke"
-      echo "--- Getting packages to test"
-      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
-      echo "--- Waiting for instance"
-      aws ec2 wait instance-status-ok --instance-ids "$instance"
-      aws ec2 create-tags --resources "$instance" --tags "Key=Name,Value=smoke-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
-      instance_ip=$(aws ec2 describe-instances --instance-ids "$instance" --query 'Reservations[0].Instances[0].PublicIpAddress' | cut -d'"' -f2)
-      printf "[devices]\nbaseVM ansible_host=$instance_ip\n[devices:vars]\nansible_user=admin" >"$smoke/hosts"
-      echo "--- Copying packages to instance and creating index"
-      ssh_aws="ssh -o StrictHostKeyChecking=no admin@$instance_ip"
-      $ssh_aws "printf 'Package: *\nPin: origin \"\"\nPin-Priority: 1001' | sudo tee /etc/apt/preferences"
-      $ssh_aws 'sudo apt-get update && sudo apt-get install -y dirmngr dpkg-dev'
-      $ssh_aws 'mkdir mydebs'
-      scp -o StrictHostKeychecking=no pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/* "admin@$instance_ip:mydebs/"
-      $ssh_aws 'cd mydebs && dpkg-scanpackages -m . 2>/dev/null | gzip -9c >Packages.gz'
-      $ssh_aws 'echo "deb [trusted=yes] file:/home/admin/mydebs ./" | sudo tee -a /etc/apt/sources.list'
-      echo "--- Installing packages"
-      $ssh_aws 'sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys AD5073F1'
-      $ssh_aws "echo 'deb http://deb.openswitch.net/$DIST unstable main opx opx-non-free' | sudo tee -a /etc/apt/sources.list"
-      $ssh_aws 'sudo apt-get update'
-      $ssh_aws 'sudo apt-get install -y opx-dell-vm && echo "Installed opx-dell-vm"'
-      echo "--- Rebooting instance"
-      aws ec2 reboot-instances --instance-ids "$instance"
-      aws ec2 wait instance-status-ok --instance-ids "$instance"
-      sleep 240
-      echo "+++ Running smoke test"
-      pushd "$smoke"
-      ansible-playbook opx_smoketest.yaml -i hosts --extra-vars "dut=baseVM" -u admin
+    plugins:
+      opx-infra/smoke-test#v0.1.0:
+        download: pool/stretch-amd64
+        slug: true
+        distribution: stretch
   - wait: ~
     continue_on_failure: true
   - label: ":s3: Publish"
