@@ -35,8 +35,10 @@ steps:
       DIST: stretch
       OPX_RELEASE: unstable
     command: |
-      echo "--- Creating test instance"
       set -euo pipefail
+      smoke="smoke-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
+      echo "--- Creating test instance"
+      cd ..
       instance=$(aws ec2 run-instances --image-id ami-dac6b5a2 --security-group-ids sg-79aad61d --count 1 --instance-type t2.small --subnet-id subnet-eb094a9c --key-name aws --query 'Instances[0].InstanceId' | cut -d'"' -f2)
       echo "$instance" > ./instance
       cleanup() {
@@ -45,8 +47,6 @@ steps:
       }
       trap cleanup EXIT
       echo "--- Getting test scripts"
-      smoke="smoke-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
-      rm -rf "smoke*"
       git clone https://github.com/open-switch/opx-test "$smoke"
       echo "--- Getting packages to test"
       buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
