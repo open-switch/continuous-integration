@@ -82,24 +82,7 @@ steps:
     agents: {queue: aptly}
     concurrency: 1
     concurrency_group: "deb.openswitch.net"
-    env:
-      DIST: stretch
-      OPX_RELEASE: unstable
-    command: |
-      if [[ -n "$BUILDKITE_TAG" ]]; then
-        OPX_RELEASE=testing
-      fi
-      cd ..
-      echo "+++ Publishing packages to opx-${OPX_RELEASE}-${DIST}"
-      buildkite-agent artifact download "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*" .
-      if [[ -n "$BUILDKITE_TAG" ]]; then
-        aptly repo include -keyring=AD5073F1 -repo="opx-${DIST}" -accept-unsigned \
-          pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
-      else
-        aptly repo include -keyring=AD5073F1 -repo="opx-${OPX_RELEASE}-${DIST}" -accept-unsigned \
-          pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*.changes
-      fi
-      aptly publish update $OPX_RELEASE s3:opx:$DIST
-      echo "--- Updating http://deb.openswitch.net/apt.svg"
-      aptly graph -format=svg -layout=vertical -output=apt.svg
-      aws s3 cp apt.svg s3://deb.openswitch.net/ --acl public-read
+    plugins:
+      opx-infra/aptly-publish:
+        download: pool/stretch-amd64/${BUILDKITE_PIPELINE_SLUG}-stretch/
+        distribution: stretch

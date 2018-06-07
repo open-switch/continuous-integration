@@ -159,7 +159,7 @@ class Pipeline:
 
 
 class DebianPipeline(Pipeline):
-    """Represents a Debian repository pipeline with multiple distributions to build for."""
+    """Represents a Debian repository pipeline for multiple distributions."""
 
     def __init__(self, name: str, webhook: bool, repository: str) -> None:
         self.name = name
