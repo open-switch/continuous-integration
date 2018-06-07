@@ -45,6 +45,8 @@ steps:
         [[ -z "$instance" ]] && read instance < ./instance
         [[ $instance ]] && aws ec2 terminate-instances --instance-ids "$instance"
         rm -rf "$smoke"
+        cd ..
+        rm -rf "$smoke"
       }
       trap cleanup EXIT
       echo "--- Getting test scripts"
@@ -72,7 +74,7 @@ steps:
       echo "--- Rebooting instance"
       aws ec2 reboot-instances --instance-ids "$instance"
       aws ec2 wait instance-status-ok --instance-ids "$instance"
-      sleep 210
+      sleep 240
       echo "+++ Running smoke test"
       pushd "$smoke"
       ansible-playbook opx_smoketest.yaml -i hosts --extra-vars "dut=baseVM" -u admin
