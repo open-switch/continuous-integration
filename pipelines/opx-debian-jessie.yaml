@@ -83,5 +83,6 @@ steps:
     concurrency_group: "deb.openswitch.net"
     plugins:
       opx-infra/aptly-publish:
-        download: pool/jessie-amd64/${BUILDKITE_PIPELINE_SLUG}-jessie/
+        download: pool/jessie-amd64
+        slug: true
         distribution: jessie

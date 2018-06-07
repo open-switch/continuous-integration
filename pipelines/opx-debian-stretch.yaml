@@ -84,5 +84,6 @@ steps:
     concurrency_group: "deb.openswitch.net"
     plugins:
       opx-infra/aptly-publish:
-        download: pool/stretch-amd64/${BUILDKITE_PIPELINE_SLUG}-stretch/
+        download: pool/stretch-amd64
+        slug: true
         distribution: stretch
