@@ -27,7 +27,7 @@ steps:
         -e OPX_RELEASE \
         opxhub/build sh -l -c "opx_build $BUILDKITE_PIPELINE_SLUG"
       echo "--- Uploading artifacts"
-      buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*$(date +%Y%m%d)*"
+      buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*"
   - wait
   - label: ":ansible: Smoke Test"
     agents: {queue: deploy}
