@@ -41,7 +41,7 @@ steps:
         distribution: jessie
   - wait
   - label: ":s3: Publish"
-    branches: "master"
+    branches: "master debian/*"
     agents: {queue: aptly}
     concurrency: 1
     concurrency_group: "deb.openswitch.net"

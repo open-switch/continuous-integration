@@ -40,7 +40,7 @@ steps:
   - wait: ~
     continue_on_failure: true
   - label: ":s3: Publish"
-    branches: "master dell*"
+    branches: "master dell* debian/*"
     agents: {queue: aptly}
     concurrency: 1
     concurrency_group: "deb.openswitch.net"
