@@ -17,6 +17,7 @@ steps:
       fi
       cd ..
       echo "+++ Building packages"
+      rm -rf pool/
       docker run \
         --rm \
         --privileged \
