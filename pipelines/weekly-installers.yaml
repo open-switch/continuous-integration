@@ -5,9 +5,9 @@ steps:
       OPX_RELEASE: unstable
       INSTALLER: "PKGS_OPX-unstable-jessie-installer-x86_64.bin"
     command: |
-      cd ..
-      rsync -a weekly-installers/ opx-onie-installer
       echo "+++ Building installer"
+      cd ..
+      rm -f PKGS_OPX-*
       docker run \
         --rm \
         --privileged \
@@ -17,9 +17,9 @@ steps:
         -e DIST \
         -e OPX_RELEASE \
         opxhub/build:$DIST sh -l -c \
-          "opx_rel_pkgasm.py --dist $OPX_RELEASE -n 0 -b opx-onie-installer/release_bp/OPX_dell_base.xml"
+          "opx_rel_pkgasm.py --dist $OPX_RELEASE -n 0 -b ${BUILDKITE_PIPELINE_SLUG}/release_bp/OPX_dell_base.xml"
       echo "--- Organizing artifacts"
-      rm -rf opx-onie-installer/
+      rm -rf ${BUILDKITE_PIPELINE_SLUG}/
       mv "PKGS_OPX-${OPX_RELEASE}-installer-x86_64.bin" "$INSTALLER"
       sha256sum "$INSTALLER" >"${INSTALLER}.sha256"
       buildkite-agent artifact upload "${INSTALLER}*"
@@ -29,9 +29,9 @@ steps:
       OPX_RELEASE: stable
       INSTALLER: "PKGS_OPX-stable-jessie-installer-x86_64.bin"
     command: |
-      cd ..
-      rsync -a weekly-installers/ opx-onie-installer
       echo "+++ Building installer"
+      cd ..
+      rm -f PKGS_OPX-*
       docker run \
         --rm \
         --privileged \
@@ -41,9 +41,9 @@ steps:
         -e DIST \
         -e OPX_RELEASE \
         opxhub/build:$DIST sh -l -c \
-          "opx_rel_pkgasm.py --dist $OPX_RELEASE -n 0 -b opx-onie-installer/release_bp/OPX_dell_base.xml"
+          "opx_rel_pkgasm.py --dist $OPX_RELEASE -n 0 -b ${BUILDKITE_PIPELINE_SLUG}/release_bp/OPX_dell_base.xml"
       echo "--- Organizing artifacts"
-      rm -rf opx-onie-installer/
+      rm -rf ${BUILDKITE_PIPELINE_SLUG}/
       mv "PKGS_OPX-${OPX_RELEASE}-installer-x86_64.bin" "$INSTALLER"
       sha256sum "$INSTALLER" >"${INSTALLER}.sha256"
       buildkite-agent artifact upload "${INSTALLER}*"

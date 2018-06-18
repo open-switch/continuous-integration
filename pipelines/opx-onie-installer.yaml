@@ -9,8 +9,9 @@ steps:
         OPX_RELEASE="$(echo $BUILDKITE_TAG | tail -c+2)"
         INSTALLER="PKGS_OPX-${OPX_RELEASE}-installer-x86_64.bin"
       fi
-      cd ..
       echo "+++ Building installer"
+      cd ..
+      rm -f PKGS_OPX-*
       docker run \
         --rm \
         --privileged \
@@ -35,8 +36,9 @@ steps:
         OPX_RELEASE="$(echo $BUILDKITE_TAG | tail -c+2)"
         INSTALLER="PKGS_OPX-${OPX_RELEASE}-installer-x86_64.bin"
       fi
-      cd ..
       echo "+++ Building installer"
+      cd ..
+      rm -f PKGS_OPX-*
       docker run \
         --rm \
         --privileged \
