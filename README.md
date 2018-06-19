@@ -1,4 +1,5 @@
-# OpenSwitch Continuous Integration
+# OpenSwitch continuous integration
+This repo contains information on Buildkit logs, repos without pipelines, changing an agent's environment, and adding secrets.
 
 ## Reading Buildkite logs
 
