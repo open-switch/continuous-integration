@@ -59,15 +59,17 @@ steps:
     agents: {queue: deploy}
     concurrency: 1
     concurrency_group: "archive.openswitch.net"
+    env:
+      DIST: stretch
+      OPX_RELEASE: unstable
+      INSTALLER: "PKGS_OPX-unstable-stretch-installer-x86_64.bin"
     command: |
-      if [[ -z "$BUILDKITE_TAG" ]]; then
-        echo Not a tag, skipping...
-        exit
+      if [[ -n "$BUILDKITE_TAG" ]]; then
+        OPX_RELEASE="$(echo $BUILDKITE_TAG | tail -c+2)"
+        INSTALLER="PKGS_OPX-${OPX_RELEASE}-installer-x86_64.bin"
       fi
-      echo "--- Uploading Unstable installer"
-      OPX_RELEASE="$(echo $BUILDKITE_TAG | tail -c+2)"
+      echo "--- Uploading $OPX_RELEASE installer"
       UPLOAD="s3://archive.openswitch.net/installers/$OPX_RELEASE/Dell-EMC"
-      INSTALLER="PKGS_OPX-$OPX_RELEASE-installer-x86_64.bin"
       buildkite-agent artifact download "${INSTALLER}*" . && {
         aws s3 cp "$INSTALLER" "$UPLOAD/$INSTALLER"
         aws s3 cp "${INSTALLER}.sha256" "$UPLOAD/${INSTALLER}.sha256"
