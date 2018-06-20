@@ -45,6 +45,7 @@ steps:
     agents: {queue: aptly}
     concurrency: 1
     concurrency_group: "deb.openswitch.net"
+    timeout_in_minutes: 30
     plugins:
       opx-infra/aptly-publish#v0.1.2:
         download: pool/jessie-amd64
