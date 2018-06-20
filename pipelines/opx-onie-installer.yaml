@@ -53,7 +53,8 @@ steps:
       mv "PKGS_OPX-${OPX_RELEASE}-installer-x86_64.bin" "$INSTALLER"
       sha256sum "$INSTALLER" >"${INSTALLER}.sha256"
       buildkite-agent artifact upload "${INSTALLER}*"
-  - wait
+  - wait: ~
+    continue_on_failure: true
   - label: ":s3: publish"
     branches: "master"
     agents: {queue: deploy}
