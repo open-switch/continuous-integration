@@ -40,7 +40,8 @@ steps:
         download: pool/stretch-amd64
         slug: true
         distribution: stretch
-  - wait
+  - wait: ~
+    continue_on_failure: true
   - label: ":s3: Publish"
     branches: "master debian/*"
     agents: {queue: aptly}
