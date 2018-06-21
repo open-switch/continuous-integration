@@ -36,7 +36,7 @@ steps:
     agents: {queue: deploy}
     timeout_in_minutes: 30
     plugins:
-      opx-infra/smoke-test#v0.1.0:
+      opx-infra/smoke-test#v0.1.1:
         download: pool/jessie-amd64
         slug: true
         distribution: jessie
