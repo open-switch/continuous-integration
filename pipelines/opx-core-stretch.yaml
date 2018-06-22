@@ -48,7 +48,7 @@ steps:
     concurrency: 1
     concurrency_group: "deb.openswitch.net"
     plugins:
-      opx-infra/aptly-publish#v0.1.2:
+      opx-infra/aptly-publish#c697b0a26c16fd437dc3d18a0c1b459b397d257c:
         download: pool/stretch-amd64
         slug: true
         distribution: stretch
