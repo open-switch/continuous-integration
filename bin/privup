@@ -27,11 +27,11 @@ instance_ip="$(aws ec2 describe-instances --filters "Name=tag:BuildkiteQueue,Val
 
 ssh_aws() {
   echo "[INFO] $*"
-  ssh -i "$key_file" "ec2-user@$instance_ip" "sudo -u buildkite-agent -i bash -c '$*'"
+  ssh -o "StrictHostKeyChecking no" -i "$key_file" "ec2-user@$instance_ip" "sudo -u buildkite-agent -i bash -c '$*'"
 }
 
 cleanup() {
-  ssh -i "$key_file" "ec2-user@$instance_ip" 'sudo rm -rf /privup/'
+  ssh -o "StrictHostKeyChecking no" -i "$key_file" "ec2-user@$instance_ip" 'sudo rm -rf /privup/'
   ssh_aws /usr/local/bin/aptly db cleanup
   ssh_aws aws s3 sync --delete /aptly s3://aptly.openswitch.net/
 }
@@ -42,9 +42,9 @@ ssh_aws ls -l '.aws/credentials' >/dev/null || {
   exit 1
 }
 
-ssh -i "$key_file" "ec2-user@$instance_ip" 'sudo mkdir -p /privup/'
-ssh -i "$key_file" "ec2-user@$instance_ip" 'sudo chmod -R a+rwx /privup/'
-rsync -Pav -e "ssh -i $key_file" "${files[@]}" "ec2-user@$instance_ip:/privup/"
+ssh -o "StrictHostKeyChecking no" -i "$key_file" "ec2-user@$instance_ip" 'sudo mkdir -p /privup/'
+ssh -o "StrictHostKeyChecking no" -i "$key_file" "ec2-user@$instance_ip" 'sudo chmod -R a+rwx /privup/'
+rsync -Pav -e "ssh -o \"StrictHostKeyChecking no\" -i $key_file" "${files[@]}" "ec2-user@$instance_ip:/privup/"
 echo "Adding packages: $(ssh_aws ls '/privup/')"
 
 ssh_aws aws s3 sync --delete s3://aptly.openswitch.net/ /aptly
