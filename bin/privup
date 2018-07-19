@@ -14,7 +14,7 @@ dist="$1"; shift
 files=( "$@" )
 
 while true; do
-running_builds="$(curl -ns 'https://api.buildkite.com/v2/builds?state=running' | jq 'length')"
+running_builds="$(curl -ns --anyauth 'https://api.buildkite.com/v2/builds?state=running' | jq 'length')"
 if [[ "$running_builds" -gt 0 ]]; then
   echo "Error: $running_builds builds are currently running. Sleeping 5 seconds and trying again." >&2
   sleep 5
