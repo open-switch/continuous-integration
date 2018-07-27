@@ -6,7 +6,7 @@ set -euo pipefail
 
 [[ $# -lt 3 ]] && {
   echo "Usage: $0 <ssh-key-file> <debian-dist> <files>..." >&2
-  exit 1
+exit 1
 }
 
 key_file="$1"; shift
@@ -14,13 +14,13 @@ dist="$1"; shift
 files=( "$@" )
 
 while true; do
-running_builds="$(curl -ns --anyauth 'https://api.buildkite.com/v2/builds?state=running' | jq 'length')"
-if [[ "$running_builds" -gt 0 ]]; then
-  echo "Error: $running_builds builds are currently running. Sleeping 5 seconds and trying again." >&2
-  sleep 5
-else
-  break
-fi
+  running_builds="$(curl -ns --anyauth 'https://api.buildkite.com/v2/builds?state=running' | jq 'length')"
+  if [[ "$running_builds" -gt 0 ]]; then
+    echo "Error: $running_builds builds are currently running. Sleeping 5 seconds and trying again." >&2
+    sleep 5
+  else
+    break
+  fi
 done
 
 instance_ip="$(aws ec2 describe-instances --filters "Name=tag:BuildkiteQueue,Values=aptly" --query 'Reservations[0].Instances[0].PublicIpAddress' | cut -d'"' -f2)"
@@ -39,7 +39,7 @@ trap cleanup EXIT
 
 ssh_aws ls -l '.aws/credentials' >/dev/null || {
   echo "AWS credentials not present on agent." >&2
-  exit 1
+exit 1
 }
 
 ssh -o "StrictHostKeyChecking no" -i "$key_file" "ec2-user@$instance_ip" 'sudo mkdir -p /privup/'
@@ -49,19 +49,21 @@ echo "Adding packages: $(ssh_aws ls '/privup/')"
 
 ssh_aws aws s3 sync --delete s3://aptly.openswitch.net/ /aptly
 if [[ "$dist" == "jessie" ]]; then
-ssh_aws /usr/local/bin/aptly repo add "opx-non-free" '/privup/'
-ssh_aws /usr/local/bin/aptly publish update unstable "s3:opx:"
-ssh_aws /usr/local/bin/aptly publish update testing "s3:opx:"
-ssh_aws /usr/local/bin/aptly publish update stable "s3:opx:"
-ssh_aws /usr/local/bin/aptly publish update 2-updates "s3:opx:"
-ssh_aws /usr/local/bin/aptly publish update unstable "s3:opx:$dist"
-ssh_aws /usr/local/bin/aptly publish update testing "s3:opx:$dist"
-ssh_aws /usr/local/bin/aptly publish update stable "s3:opx:$dist"
-ssh_aws /usr/local/bin/aptly publish update 2-updates "s3:opx:$dist"
+  ssh_aws /usr/local/bin/aptly repo add "opx-non-free" '/privup/'
+  ssh_aws /usr/local/bin/aptly publish update unstable "s3:opx:"
+  ssh_aws /usr/local/bin/aptly publish update testing "s3:opx:"
+  ssh_aws /usr/local/bin/aptly publish update stable "s3:opx:"
+  ssh_aws /usr/local/bin/aptly publish update 2-updates "s3:opx:"
+  ssh_aws /usr/local/bin/aptly publish update unstable "s3:opx:$dist"
+  ssh_aws /usr/local/bin/aptly publish update testing "s3:opx:$dist"
+  ssh_aws /usr/local/bin/aptly publish update stable "s3:opx:$dist"
+  ssh_aws /usr/local/bin/aptly publish update 2-updates "s3:opx:$dist"
 else
-ssh_aws /usr/local/bin/aptly repo add "opx-non-free-$dist" '/privup/'
-ssh_aws /usr/local/bin/aptly publish update unstable "s3:opx:$dist"
-ssh_aws /usr/local/bin/aptly publish update testing "s3:opx:$dist"
-ssh_aws /usr/local/bin/aptly publish update stable "s3:opx:$dist"
-ssh_aws /usr/local/bin/aptly publish update 2-updates "s3:opx:$dist"
+  ssh_aws /usr/local/bin/aptly repo add "opx-non-free-$dist" '/privup/'
+  ssh_aws /usr/local/bin/aptly publish update unstable "s3:opx:$dist"
+  ssh_aws /usr/local/bin/aptly publish update testing "s3:opx:$dist"
+  ssh_aws /usr/local/bin/aptly publish update stable "s3:opx:$dist"
+  if [[ "$dist" == "stretch" ]]; then
+    ssh_aws /usr/local/bin/aptly publish update 3-updates "s3:opx:$dist"
+  fi
 fi
