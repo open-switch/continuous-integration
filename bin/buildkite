@@ -308,12 +308,6 @@ def main():
         if args.name == "opx-core":
             print(
                 getattr(
-                    Pipeline(f"{args.name}-jessie", args.webhook, args.name),
-                    args.action,
-                )()
-            )
-            print(
-                getattr(
                     Pipeline(f"{args.name}-stretch", args.webhook, args.name),
                     args.action,
                 )()
