@@ -31,6 +31,7 @@ steps:
       buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*"
   - wait
   - label: ":ansible: Smoke Test"
+    branches: "!debian/*"
     agents: {queue: deploy}
     timeout_in_minutes: 15
     plugins:
