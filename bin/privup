@@ -25,6 +25,10 @@ init() {
   fi
 
   if ! ssh_aws test -e '.aws/config' >/dev/null; then
+    echo "AWS config not present on agent." >&2
+    return 1
+  fi
+  if ! ssh_aws test -e '.aws/credentials' >/dev/null; then
     echo "AWS credentials not present on agent." >&2
     return 1
   fi
