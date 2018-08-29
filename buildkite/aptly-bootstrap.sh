@@ -4,7 +4,7 @@
 yum -y install python36
 easy_install-3.6 pip
 /usr/local/bin/pip3 install --upgrade pip
-/usr/local/bin/pip3 install pipenv
+/usr/local/bin/pip3 install black dbp pipenv
 
 echo "buildkite-agent ALL=(ALL) NOPASSWD:ALL" | tee -a /etc/sudoers
 
