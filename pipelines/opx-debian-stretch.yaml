@@ -18,15 +18,8 @@ steps:
       cd ..
       echo "+++ Building packages"
       rm -rf pool/
-      docker run \
-        --rm \
-        --privileged \
-        -e LOCAL_UID=$(id -u ${USER}) \
-        -e LOCAL_GID=$(id -g ${USER}) \
-        -v ${PWD}:/mnt \
-        -e DIST \
-        -e OPX_RELEASE \
-        opxhub/build sh -l -c "opx_build $BUILDKITE_PIPELINE_SLUG"
+      export EXTRA_SOURCES="deb http://deb.openswitch.net/$DIST $OPX_RELEASE opx opx-non-free"
+      dbp -vv --dist "$DIST" build "$BUILDKITE_PIPELINE_SLUG"
       echo "--- Uploading artifacts"
       buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*"
   - wait
