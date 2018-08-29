@@ -3,6 +3,5 @@ steps:
     command: |
       echo "--- Installing dependencies"
       pipenv install --deploy --dev
-      pipenv run pip install black
       echo "+++ Running formatter"
-      pipenv run black --check bin/buildkite
+      /usr/local/bin/black --check bin/buildkite
