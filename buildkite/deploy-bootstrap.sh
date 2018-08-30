@@ -18,6 +18,10 @@ export PATH=/usr/local/bin:$PATH
 export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 export PIPENV_VENV_IN_PROJECT=yes
+
+if [[ -d /var/lib/buildkite-agent/.gitconfig ]]; then
+  rm -rf /var/lib/buildkite-agent/.gitconfig
+fi
 PRE
 
 # Agent-specific configuration ################################################
