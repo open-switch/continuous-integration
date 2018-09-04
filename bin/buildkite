@@ -26,6 +26,7 @@ DEBIAN_REPOS = [
     "opx-alarm",
     "opx-base-model",
     "opx-common-utils",
+    "opx-core",
     "opx-cps",
     "opx-db-sql",
     "opx-logging",
@@ -51,7 +52,6 @@ OTHER_REPOS = [
     # "continuous-integration",
     "github",
     "opx-build",
-    "opx-core",
     # "opx-docs",
     # "opx-manifest",
     # "opx-northbound",
@@ -278,19 +278,7 @@ def main():
     elif args.name == "all" or args.name == "all-debian":
         if args.name == "all":
             for name in OTHER_REPOS:
-                if name == "opx-core":
-                    print(
-                        getattr(
-                            Pipeline(f"{name}-jessie", args.webhook, name), args.action
-                        )()
-                    )
-                    print(
-                        getattr(
-                            Pipeline(f"{name}-stretch", args.webhook, name), args.action
-                        )()
-                    )
-                else:
-                    print(getattr(Pipeline(name, args.webhook, name), args.action)())
+                print(getattr(Pipeline(name, args.webhook, name), args.action)())
 
         for name in DEBIAN_REPOS:
             print(f"Running {args.action} on {name}")
@@ -305,19 +293,9 @@ def main():
                 )()
             )
     else:
-        if args.name == "opx-core":
-            print(
-                getattr(
-                    Pipeline(f"{args.name}-stretch", args.webhook, args.name),
-                    args.action,
-                )()
-            )
-        else:
-            print(
-                getattr(
-                    Pipeline(args.name, args.webhook, args.repository), args.action
-                )()
-            )
+        print(
+            getattr(Pipeline(args.name, args.webhook, args.repository), args.action)()
+        )
 
 
 if __name__ == "__main__":
