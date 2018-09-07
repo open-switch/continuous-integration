@@ -1,5 +1,6 @@
 steps:
   - label: ":debian: Build"
+    branches: "!installer/*"
     env:
       DIST: stretch
       OPX_RELEASE: unstable
@@ -24,7 +25,7 @@ steps:
       buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*"
   - wait
   - label: ":ansible: Smoke Test"
-    branches: "!debian/*"
+    branches: "!debian/* !installer/*"
     agents: {queue: deploy}
     timeout_in_minutes: 15
     plugins:

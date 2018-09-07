@@ -1,5 +1,6 @@
 steps:
   - label: ":docker: opxhub/build"
+    branches: "!installer/*"
     command: |
       echo "+++ Building Docker image"
       ./docker_build.sh

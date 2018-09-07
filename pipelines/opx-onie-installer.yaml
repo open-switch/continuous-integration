@@ -1,5 +1,6 @@
 steps:
   - label: ":debian: Stretch Unstable"
+    branches: "!installer/*"
     env:
       DIST: stretch
       OPX_RELEASE: unstable
