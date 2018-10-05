@@ -33,7 +33,7 @@ easy_install-2.7 pip
 /usr/local/bin/pip2 install --upgrade pip
 /usr/local/bin/pip2 install ansible
 
-TF_ZIP=terraform_0.11.7_linux_amd64.zip
-wget "https://releases.hashicorp.com/terraform/0.11.7/$TF_ZIP"
+TF_ZIP=terraform_0.11.8_linux_amd64.zip
+wget "https://releases.hashicorp.com/terraform/0.11.8/$TF_ZIP"
 unzip "$TF_ZIP" -d /usr/local/bin && rm -f "$TF_ZIP"
 ) 2>&1 | tee /bootstrap.log
