@@ -26,6 +26,11 @@ if [[ -d /var/lib/buildkite-agent/.gitconfig ]]; then
 fi
 PRE
 
+cat <<'PRE' | tee -a /etc/buildkite-agent/hooks/pre-exit
+echo "--- Upgrading dbp"
+sudo /usr/local/bin/pip3 install --upgrade dbp
+PRE
+
 # Agent-specific configuration ################################################
 
 cat <<'PRE' | tee -a /etc/buildkite-agent/hooks/pre-command
@@ -44,7 +49,7 @@ yum -y install graphviz gnupg
 # Set up Aptly
 APTLY_DIR=aptly_1.3.0_linux_amd64
 curl -sL "https://bintray.com/artifact/download/smira/aptly/$APTLY_DIR.tar.gz" | tar xz
-mv "$APTLY_DIR/aptly" /usr/local/bin/aptly && rm -rf "$APTLY_DIR/"
+mv "$APTLY_DIR/aptly" /usr/local/bin/aptly && rm -rf "${APTLY_DIR:?}/"
 cat <<APTLY | tee /etc/aptly.conf
 {
   "rootDir": "/aptly",

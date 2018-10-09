@@ -26,12 +26,17 @@ if [[ -d /var/lib/buildkite-agent/.gitconfig ]]; then
 fi
 PRE
 
+cat <<'PRE' | tee -a /etc/buildkite-agent/hooks/pre-exit
+echo "--- Upgrading dbp"
+sudo /usr/local/bin/pip3 install --upgrade dbp
+PRE
+
 # Agent-specific configuration ################################################
 
 cat <<'PRE' | tee -a /etc/buildkite-agent/hooks/pre-exit
-echo "--- Pulling opxhub/build"
-docker pull opxhub/build
+echo "--- Pulling opxhub/gbp"
+dbp pull
 PRE
 
-docker pull opxhub/build
+dbp pull
 ) 2>&1 | tee /bootstrap.log
