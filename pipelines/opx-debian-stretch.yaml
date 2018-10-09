@@ -19,8 +19,7 @@ steps:
       cd ..
       echo "+++ Building packages"
       rm -rf pool/
-      export EXTRA_SOURCES="deb http://deb.openswitch.net/$DIST $OPX_RELEASE opx opx-non-free"
-      dbp -vv --dist "$DIST" build "$BUILDKITE_PIPELINE_SLUG"
+      dbp -vv --dist "$DIST" --release "$OPX_RELEASE" build "$BUILDKITE_PIPELINE_SLUG"
       echo "--- Uploading artifacts"
       buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*"
   - wait

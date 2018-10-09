@@ -265,12 +265,6 @@ def main():
         print(f"Running {args.action} on {args.name}")
         print(
             getattr(
-                DebianPipeline(f"{args.name}-jessie", args.webhook, args.name),
-                args.action,
-            )()
-        )
-        print(
-            getattr(
                 DebianPipeline(f"{args.name}-stretch", args.webhook, args.name),
                 args.action,
             )()
@@ -282,11 +276,6 @@ def main():
 
         for name in DEBIAN_REPOS:
             print(f"Running {args.action} on {name}")
-            print(
-                getattr(
-                    DebianPipeline(f"{name}-jessie", args.webhook, name), args.action
-                )()
-            )
             print(
                 getattr(
                     DebianPipeline(f"{name}-stretch", args.webhook, name), args.action
