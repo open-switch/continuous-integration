@@ -28,7 +28,7 @@ steps:
     agents: {queue: deploy}
     timeout_in_minutes: 15
     plugins:
-      opx-infra/smoke-test#v0.1.1:
+      opx-infra/smoke-test#v0.1.2:
         download: .
         slug: false
         distribution: stretch
