@@ -45,6 +45,7 @@ DEBIAN_REPOS = [
     "opx-sai-vm",
     "opx-sdi-sys",
     "opx-snmp",
+    "opx-system-utils",
     "opx-tmpctl",
     "opx-tools",
 ]
