@@ -17,12 +17,13 @@ steps:
         sed -i "s/$v/$VERSION/g" debian/changelog
       fi
       cd ..
-      echo "+++ Building packages"
+      echo "--- Cleanup old builds"
+      dbp --dist "$DIST" --release "$OPX_RELEASE" shell -c 'shopt -s nullglob; for f in *.changes; do pool-packages $f; done'
       rm -rf pool/
       dbp -vv --dist "$DIST" --release "$OPX_RELEASE" build "$BUILDKITE_PIPELINE_SLUG"
-      dbp -vv --dist "$DIST" --release "$OPX_RELEASE" shell -c 'pool-packages *.changes'
-      mv "pool/${DIST}-amd64/*" "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG"
       echo "--- Uploading artifacts"
+      dbp --dist "$DIST" --release "$OPX_RELEASE" shell -c 'pool-packages *.changes'
+      mv "pool/${DIST}-amd64/"*/ "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG"
       buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*"
   - wait
   - label: ":ansible: Smoke Test"
