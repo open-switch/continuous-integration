@@ -20,7 +20,7 @@ steps:
       echo "--- Cleanup old builds"
       dbp --dist "$DIST" --release "$OPX_RELEASE" shell -c 'shopt -s nullglob; for f in *.changes; do pool-packages $f; done'
       rm -rf pool/
-      dbp -vv --dist "$DIST" --release "$OPX_RELEASE" build "$BUILDKITE_PIPELINE_SLUG"
+      dbp --dist "$DIST" --release "$OPX_RELEASE" build "$BUILDKITE_PIPELINE_SLUG"
       echo "--- Uploading artifacts"
       dbp --dist "$DIST" --release "$OPX_RELEASE" shell -c 'pool-packages *.changes'
       mv "pool/${DIST}-amd64/"*/ "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG"
