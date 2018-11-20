@@ -22,7 +22,6 @@ API = "https://api.buildkite.com/v2/organizations/opx/pipelines"
 WEBHOOK_EVENTS = ("deployment", "pull_request", "push")
 
 DEBIAN_REPOS = [
-    "SAI",
     "opx-alarm",
     "opx-base-model",
     "opx-common-utils",
@@ -42,6 +41,7 @@ DEBIAN_REPOS = [
     "opx-nas-qos",
     "opx-pas",
     "opx-platform-config",
+    "opx-sai-api",
     "opx-sai-vm",
     "opx-sdi-sys",
     "opx-snmp",
