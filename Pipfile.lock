@@ -57,6 +57,7 @@
             ],
             "index": "pypi",
             "version": "==4.2b1"
+            
         },
         "requests": {
             "hashes": [
