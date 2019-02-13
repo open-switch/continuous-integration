@@ -34,6 +34,7 @@ PRE
 # Agent-specific configuration ################################################
 
 cat <<'PRE' | tee -a /etc/buildkite-agent/hooks/pre-command
+export APTLY_KEY=AD5073F1        # This is a temporary solution to fix GPG publish errors
 echo "$APTLY_KEY" | gpg --import || true
 echo "$APTLY_KEY" | gpg --no-default-keyring --keyring trustedkeys.gpg --import || true
 aws s3 sync --delete s3://aptly.openswitch.net/ /aptly
