@@ -1,7 +1,6 @@
 (
 # Common configuration ########################################################
-set -x
-export APTLY_KEY=AD5073F1        # This is a temporary solution to fix GPG publish errors
+
 yum -y install python36
 easy_install-3.6 pip
 /usr/local/bin/pip3 install --upgrade pip
