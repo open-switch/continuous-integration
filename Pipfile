@@ -1,21 +1,15 @@
 [[source]]
-
-url = "https://pypi.python.org/simple"
-verify_ssl = true
 name = "pypi"
-
-
-[packages]
-
-requests = ">=2.20.0"
-pyyaml = "*"
-"jinja2" = "*"
-
+url = "https://pypi.org/simple"
+verify_ssl = true
 
 [dev-packages]
 
-
+[packages]
+requests = "*"
+pyyaml = "*"
+jinja2 = "*"
+urllib3 = ">=1.24.2"
 
 [requires]
-
-python_version = "3.6"
+python_version = "3.7"
