@@ -36,7 +36,9 @@ init() {
   printf "[INFO] Waiting for builds to finish" >&2
 
   while true; do
-    running_builds="$(curl -ns --anyauth 'https://api.buildkite.com/v2/builds?state=running' | jq 'length')"
+    # API Access token for account opx in Buildkite stored in Secrets Manager.
+    secrets_mgr_token="$(aws secretsmanager get-secret-value --secret-id BuildkiteAPIToken | jq -r .'SecretString')"
+    running_builds="$(curl -s -H "Authorization: Bearer $secrets_mgr_token" "https://api.buildkite.com/v2/builds?state=running")"
     if [[ "$running_builds" -gt 0 ]]; then
       printf "." >&2
       sleep 5

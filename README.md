@@ -33,3 +33,7 @@ Agent environments are bootstrapped from a script. Visit the parameters of any s
 ## Adding secrets
 
 Secrets are pulled in from the `/env` file in the managed secrets S3 bucket. Each stack has its own bucket. Download the file, edit it, and upload it back to commit changes. No further action is necessary.
+
+## privup script is used to upload packages to s3 bucket deb.openswitch.net
+
+This script contacts AWS s3 buckets to upload packages. It also contacts the Secrets Manager for API access tokens.
