@@ -25,16 +25,16 @@ steps:
       dbp --dist "$DIST" --release "$OPX_RELEASE" shell -c 'pool-packages *.changes'
       mv "pool/${DIST}-amd64/"*/ "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG"
       buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*"
-  - wait
-  - label: ":ansible: Smoke Test"
-    branches: "!debian/* !installer/*"
-    agents: {queue: deploy}
-    timeout_in_minutes: 30
-    plugins:
-      opx-infra/smoke-test#v0.1.1:
-        download: pool/stretch-amd64
-        slug: true
-        distribution: stretch
+ # - wait
+ # - label: ":ansible: Smoke Test"
+ #   branches: "!debian/* !installer/*"
+ #   agents: {queue: deploy}
+ #   timeout_in_minutes: 30
+ #   plugins:
+ #     opx-infra/smoke-test#v0.1.1:
+ #       download: pool/stretch-amd64
+ #       slug: true
+ #       distribution: stretch
   - wait
   - label: ":s3: Publish"
     branches: "master dell* debian/*"
