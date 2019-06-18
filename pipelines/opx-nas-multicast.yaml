@@ -1,0 +1,38 @@
+steps:
+  - label: ":debian: Build"
+    branches: "!installer/*"
+    env:
+      DIST: stretch
+      OPX_RELEASE: unstable
+    command: |
+      if [[ -n "$BUILDKITE_TAG" ]]; then
+        VERSION="$(head -1 debian/changelog | awk -F'[()]' '{print $2}')"
+        OPX_RELEASE=testing
+      else
+        echo "--- Bumping version with git sha and date"
+        v="$(head -1 debian/changelog | awk -F'[()]' '{print $2}')"
+        if [[ $v == *"+"* ]]; then s="."; else s="+"; fi
+        VERSION="${v}${s}git$(date +%Y%m%d).$(git rev-parse --short HEAD)"
+        echo "Bumping from $v to $VERSION"
+        sed -i "s/$v/$VERSION/g" debian/changelog
+      fi
+      cd ..
+      echo "--- Cleanup old builds"
+      dbp --dist "$DIST" --release "$OPX_RELEASE" shell -c 'shopt -s nullglob; for f in *.changes; do pool-packages $f; done'
+      rm -rf pool/
+      dbp --dist "$DIST" --release "$OPX_RELEASE" build "$BUILDKITE_PIPELINE_SLUG"
+      echo "--- Uploading artifacts"
+      dbp --dist "$DIST" --release "$OPX_RELEASE" shell -c 'pool-packages *.changes'
+      #mv "pool/${DIST}-amd64/"*/ "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG"
+      buildkite-agent artifact upload "pool/${DIST}-amd64/$BUILDKITE_PIPELINE_SLUG/*"
+  - wait
+  - label: ":s3: Publish"
+    branches: "master dell* debian/*"
+    agents: {queue: aptly}
+    concurrency: 1
+    concurrency_group: "deb.openswitch.net"
+    plugins:
+      opx-infra/aptly-publish#v0.1.2:
+        download: pool/stretch-amd64
+        slug: true
+        distribution: stretch
