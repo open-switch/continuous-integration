@@ -52,14 +52,14 @@ init() {
 
   ssh_aws sudo service buildkite-agent-1 stop
 
-  ssh_aws aws s3 sync --delete s3://aptly.openswitch.net/ /aptly
+  ssh_aws aws s3 sync s3://aptly.openswitch.net/ /aptly
 }
 
 cleanup() {
   set +e
   ssh -o "StrictHostKeyChecking no" -i "$key_file" "ec2-user@$instance_ip" 'sudo rm -rf /privup/'
   ssh_aws /usr/local/bin/aptly db cleanup
-  ssh_aws aws s3 sync --delete /aptly s3://aptly.openswitch.net/
+  ssh_aws aws s3 sync /aptly s3://aptly.openswitch.net/
   ssh_aws sudo service buildkite-agent-1 start
   set -e
 }
